@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'Ormawa/ormawa_login.dart';
+import 'ormawa/ormawa_login.dart';
 import './dosen/dosen_login.dart';
 
 class LoginPage extends StatelessWidget {

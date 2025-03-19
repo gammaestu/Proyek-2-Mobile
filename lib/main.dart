@@ -6,6 +6,9 @@ import 'ormawa/ormawa_pengajuan.dart';
 import 'ormawa/ormawa_riwayat.dart';
 import 'ormawa/ormawa_profile.dart';
 
+import 'dosen/dosen_login.dart';
+import 'dosen/dosen_beranda.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -45,6 +48,9 @@ class MyApp extends StatelessWidget {
         '/pengajuan': (context) => const OrmawaPengajuanPage(),
         '/riwayat': (context) => const OrmawaRiwayatPage(),
         '/profil': (context) => const OrmawaProfilPage(),
+
+        '/dosen': (context) => const DosenLoginPage(),
+        '/dosen/beranda': (context) => const DosenBerandaPage(),
       },
     );
   }
