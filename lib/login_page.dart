@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'Ormawa/ormawa_login.dart';
+import './dosen/dosen_login.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
@@ -89,7 +90,14 @@ class LoginPage extends StatelessWidget {
                   ),
                   const SizedBox(width: 20),
                   ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DosenLoginPage(),
+                        ),
+                      );
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue[600],
                       padding: const EdgeInsets.symmetric(

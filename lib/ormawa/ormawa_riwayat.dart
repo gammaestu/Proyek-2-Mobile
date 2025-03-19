@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'ormawa_beranda.dart';
-import 'ormawa_pengajuan.dart';
-import 'ormawa_profile.dart';
+import '../component/navbar_ormawa.dart';
 
 class OrmawaRiwayatPage extends StatelessWidget {
   final String userName;
@@ -93,59 +91,7 @@ class OrmawaRiwayatPage extends StatelessWidget {
       ),
 
       // Bottom navigation bar
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 2,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Beranda',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.edit_document),
-            label: 'Pengajuan',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'Riwayat',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profil',
-          ),
-        ],
-        onTap: (index) {
-          if (index != 2) {
-            Navigator.pushReplacement(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) {
-                  Widget page;
-                  switch (index) {
-                    case 0:
-                      page = const OrmawaBerandaPage();
-                      break;
-                    case 1:
-                      page = const OrmawaPengajuanPage();
-                      break;
-                    case 3:
-                      page = const OrmawaProfilPage();
-                      break;
-                    default:
-                      page = const OrmawaBerandaPage();
-                  }
-                  return page;
-                },
-                transitionDuration: const Duration(milliseconds: 300),
-                transitionsBuilder:
-                    (context, animation, secondaryAnimation, child) {
-                  return FadeTransition(opacity: animation, child: child);
-                },
-              ),
-            );
-          }
-        },
-      ),
+      bottomNavigationBar: const NavbarOrmawa(currentIndex: 2),
     );
   }
 }
