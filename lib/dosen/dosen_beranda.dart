@@ -1,164 +1,120 @@
 import 'package:flutter/material.dart';
-import '../login_page.dart';
 import '../component/navbar_dosen.dart';
 
 class DosenBerandaPage extends StatelessWidget {
-  final String userName;
-
-  const DosenBerandaPage({super.key, this.userName = 'Dosen'});
+  const DosenBerandaPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.blue,
-        toolbarHeight: 75,
+        elevation: 0,
         automaticallyImplyLeading: false,
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            GestureDetector(
-              onTap: () {
-                showDialog(
-                  context: context,
-                  builder: (BuildContext context) {
-                    return AlertDialog(
-                      title: const Text('Konfirmasi'),
-                      content: const Text('Apakah Anda yakin ingin keluar?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(context); // Close dialog
-                          },
-                          child: const Text('Batal'),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const LoginPage(),
-                              ),
-                              (route) => false, // Remove all previous routes
-                            );
-                          },
-                          child: const Text(
-                            'Keluar',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
-              child: const Text(
-                'SIGNIX',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+            const Text(
+              "SIGNIX",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
               ),
             ),
             Row(
               children: [
-                Text(
-                  userName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                  ),
+                const Text(
+                  "Dosen A",
+                  style: TextStyle(color: Colors.white, fontSize: 14),
                 ),
                 const SizedBox(width: 10),
-                const CircleAvatar(
+                CircleAvatar(
                   backgroundColor: Colors.white,
-                  radius: 15,
+                  radius: 16,
                   child: Icon(
                     Icons.person,
                     color: Colors.blue,
                     size: 20,
                   ),
                 ),
-                const SizedBox(width: 16),
               ],
+            )
+          ],
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 20),
+            const Center(
+              child: Text(
+                "Selamat Datang, Dosen A!",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 30),
+            const Text(
+              "Riwayat Dokumen",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildStatusCard(
+                  title: "30 Surat Telah Diajukan",
+                  color: Colors.orange,
+                ),
+                _buildStatusCard(
+                  title: "5 Surat Sudah Disahkan",
+                  color: Colors.green,
+                ),
+              ],
+            ),
+            const SizedBox(height: 30),
+            const Text(
+              "FAQ",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              height: 150,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           ],
         ),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Welcome text
-              Text(
-                'Selamat Datang, $userName!',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 20),
+      bottomNavigationBar: const NavbarDosen(currentIndex: 0),
+    );
+  }
 
-              // Document history section
-              const Text(
-                'Riwayat Dokumen',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // Grid of document cards
-              GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                children: List.generate(4, (index) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  );
-                }),
-              ),
-
-              const SizedBox(height: 20),
-
-              // FAQ section
-              const Text(
-                'FAQ',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // FAQ container
-              Container(
-                width: double.infinity,
-                height: 200,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-            ],
-          ),
-        ),
+  Widget _buildStatusCard({required String title, required Color color}) {
+    return Container(
+      width: 150,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border.all(color: color),
+        borderRadius: BorderRadius.circular(10),
       ),
-
-      // Bottom navigation bar
-      bottomNavigationBar: const NavbarOrmawa(currentIndex: 0),
+      child: Column(
+        children: [
+          const Icon(Icons.mail, size: 30),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 14),
+          ),
+        ],
+      ),
     );
   }
 }

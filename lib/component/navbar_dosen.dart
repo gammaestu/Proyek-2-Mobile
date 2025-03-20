@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import '../dosen/dosen_beranda.dart';
+import '../dosen/pengesahan_dosen.dart';
+import '../dosen/riwayat_dosen.dart';
 
-class NavbarOrmawa extends StatelessWidget {
+
+class NavbarDosen extends StatelessWidget {
   final int currentIndex;
 
-  const NavbarOrmawa({super.key, required this.currentIndex});
+  const NavbarDosen({super.key, required this.currentIndex});
 
   @override
   Widget build(BuildContext context) {
@@ -17,8 +20,8 @@ class NavbarOrmawa extends StatelessWidget {
           label: 'Beranda',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.edit_document),
-          label: 'Pengajuan',
+          icon: Icon(Icons.checklist),
+          label: 'Pengesahan',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.history),
@@ -39,6 +42,12 @@ class NavbarOrmawa extends StatelessWidget {
                 switch (index) {
                   case 0:
                     page = const DosenBerandaPage();
+                    break;
+                  case 1:
+                    page = const DosenPengesahanPage();
+                    break;
+                  case 2:
+                    page = const DosenRiwayatPage();
                     break;
                   default:
                     page = const DosenBerandaPage();

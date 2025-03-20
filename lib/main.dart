@@ -8,6 +8,7 @@ import 'ormawa/ormawa_profile.dart';
 
 import 'dosen/dosen_login.dart';
 import 'dosen/dosen_beranda.dart';
+import 'dosen/pengesahan_dosen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -46,11 +47,12 @@ class MyApp extends StatelessWidget {
         '/': (context) => const OrmawaLoginPage(),
         '/beranda': (context) => const OrmawaBerandaPage(),
         '/pengajuan': (context) => const OrmawaPengajuanPage(),
-        '/riwayat': (context) => const OrmawaRiwayatPage(),
+        '/riwayat ormawa': (context) => const OrmawaRiwayatPage(),
         '/profil': (context) => const OrmawaProfilPage(),
 
         '/dosen': (context) => const DosenLoginPage(),
         '/dosen/beranda': (context) => const DosenBerandaPage(),
+        '/dosen/pengesahan': (context) => const DosenPengesahanPage(),
       },
     );
   }
