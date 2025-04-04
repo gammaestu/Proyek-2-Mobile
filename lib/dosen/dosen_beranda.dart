@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../component/navbar_dosen.dart';
 
 class DosenBerandaPage extends StatelessWidget {
-  const DosenBerandaPage({super.key});
+  final String userName;
+
+  const DosenBerandaPage({super.key, this.userName = 'Dosen'});
 
   @override
   Widget build(BuildContext context) {
@@ -25,9 +27,9 @@ class DosenBerandaPage extends StatelessWidget {
             ),
             Row(
               children: [
-                const Text(
-                  "Dosen A",
-                  style: TextStyle(color: Colors.white, fontSize: 14),
+                Text(
+                  userName,
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
                 ),
                 const SizedBox(width: 10),
                 CircleAvatar(
@@ -50,10 +52,10 @@ class DosenBerandaPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
-            const Center(
+            Center(
               child: Text(
-                "Selamat Datang, Dosen A!",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                "Selamat Datang, $userName!",
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(height: 30),
