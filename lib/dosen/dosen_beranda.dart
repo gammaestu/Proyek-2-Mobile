@@ -4,7 +4,7 @@ import '../component/navbar_dosen.dart';
 class DosenBerandaPage extends StatelessWidget {
   final String userName;
 
-  const DosenBerandaPage({super.key, this.userName = 'Dosen'});
+  const DosenBerandaPage({super.key, this.userName = 'Dosen', Map<String, dynamic>? userData});
 
   @override
   Widget build(BuildContext context) {

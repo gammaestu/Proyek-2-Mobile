@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import '../component/navbar_ormawa.dart';
+import '../component/navbar_dosen.dart';
 import '../services/auth_service.dart';
 
-class OrmawaProfilePage extends StatefulWidget {
+class DosenProfilePage extends StatefulWidget {
   final Map<String, dynamic>? userData;
-  const OrmawaProfilePage({super.key, this.userData});
+  const DosenProfilePage({super.key, this.userData});
 
   @override
-  State<OrmawaProfilePage> createState() => _OrmawaProfilePageState();
+  State<DosenProfilePage> createState() => _DosenProfilePageState();
 }
 
-class _OrmawaProfilePageState extends State<OrmawaProfilePage> {
+class _DosenProfilePageState extends State<DosenProfilePage> {
   final AuthService _authService = AuthService();
   final int _selectedIndex = 3;
   Map<String, dynamic>? _userData;
@@ -25,12 +25,10 @@ class _OrmawaProfilePageState extends State<OrmawaProfilePage> {
   Future<void> _loadUserData() async {
     Map<String, dynamic>? userData;
 
-    // Coba ambil dari widget.userData dulu
     if (widget.userData != null) {
       userData = widget.userData;
       print('Data dari widget: $userData');
     } else {
-      // Jika tidak ada, coba ambil dari penyimpanan
       userData = await _authService.getUser();
       print('Data dari penyimpanan: $userData');
     }
@@ -63,8 +61,7 @@ class _OrmawaProfilePageState extends State<OrmawaProfilePage> {
       return 'User';
     }
 
-    // Ambil nama dari field namaMahasiswa
-    final nama = _userData!['namaMahasiswa']?.toString() ?? 'User';
+    final nama = _userData!['namaDosen']?.toString() ?? 'User';
     print('Data pengguna lengkap: $_userData');
     print('Nama yang akan ditampilkan: $nama');
     return nama;
@@ -74,7 +71,7 @@ class _OrmawaProfilePageState extends State<OrmawaProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profil'),
+        title: const Text('Profil Dosen'),
         backgroundColor: Colors.blue,
       ),
       body: _isLoading
@@ -110,9 +107,9 @@ class _OrmawaProfilePageState extends State<OrmawaProfilePage> {
                     ),
                     const SizedBox(height: 32),
                     _buildProfileItem(
-                      icon: Icons.person_outline,
-                      title: 'NIM',
-                      value: _userData?['nim']?.toString() ?? '-',
+                      icon: Icons.badge_outlined,
+                      title: 'NIP',
+                      value: _userData?['nip']?.toString() ?? '-',
                     ),
                     _buildProfileItem(
                       icon: Icons.email_outlined,
@@ -125,9 +122,9 @@ class _OrmawaProfilePageState extends State<OrmawaProfilePage> {
                       value: _userData?['noHp']?.toString() ?? '-',
                     ),
                     _buildProfileItem(
-                      icon: Icons.groups_outlined,
-                      title: 'Organisasi',
-                      value: _userData?['namaOrmawa']?.toString() ?? '-',
+                      icon: Icons.school_outlined,
+                      title: 'Program Studi',
+                      value: _userData?['prodi']?.toString() ?? '-',
                     ),
                     const SizedBox(height: 32),
                     SizedBox(
@@ -154,7 +151,7 @@ class _OrmawaProfilePageState extends State<OrmawaProfilePage> {
                 ),
               ),
             ),
-      bottomNavigationBar: NavbarOrmawa(
+      bottomNavigationBar: NavbarDosen(
         currentIndex: _selectedIndex,
         userData: _userData,
       ),

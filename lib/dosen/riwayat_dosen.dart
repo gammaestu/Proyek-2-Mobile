@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../component/navbar_dosen.dart';
 
 class DosenRiwayatPage extends StatelessWidget {
-  const DosenRiwayatPage({super.key});
+  const DosenRiwayatPage({super.key, Map<String, dynamic>? userData});
 
   @override
   Widget build(BuildContext context) {

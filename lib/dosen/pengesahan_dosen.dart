@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../component/navbar_dosen.dart';
 
 class DosenPengesahanPage extends StatelessWidget {
-  const DosenPengesahanPage({super.key});
+  final Map<String, dynamic>? userData;
+
+  const DosenPengesahanPage({super.key, this.userData});
 
   @override
   Widget build(BuildContext context) {
@@ -25,12 +27,12 @@ class DosenPengesahanPage extends StatelessWidget {
             ),
             Row(
               children: [
-                const Text(
-                  "Dosen A",
-                  style: TextStyle(color: Colors.white, fontSize: 14),
+                Text(
+                  userData?['nama'] ?? "Dosen",
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
                 ),
                 const SizedBox(width: 10),
-                CircleAvatar(
+                const CircleAvatar(
                   backgroundColor: Colors.white,
                   radius: 16,
                   child: Icon(
@@ -63,7 +65,6 @@ class DosenPengesahanPage extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  // Nomor surat & nama pengirim
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,7 +81,6 @@ class DosenPengesahanPage extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // Tombol Lihat Detail
                   ElevatedButton(
                     onPressed: () {},
                     style: ElevatedButton.styleFrom(
@@ -99,7 +99,6 @@ class DosenPengesahanPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
-            // Placeholder untuk daftar surat lain
             Expanded(
               child: ListView.builder(
                 itemCount: 4,
@@ -118,7 +117,7 @@ class DosenPengesahanPage extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: const NavbarDosen(currentIndex: 1),
+      bottomNavigationBar: NavbarDosen(currentIndex: 1, userData: userData),
     );
   }
 }
