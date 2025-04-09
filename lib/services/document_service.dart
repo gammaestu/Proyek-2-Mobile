@@ -90,6 +90,32 @@ class DocumentService {
     }
   }
 
+  Future<Map<String, dynamic>> getDocumentStatsForDosen() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString(AuthService.tokenKey);
+
+      final response = await http.get(
+        Uri.parse('${getBaseUrl()}/dosen/document-stats'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        print('Gagal ambil data dokumen: ${response.body}');
+        return {'data': {}};
+      }
+    } catch (e) {
+      print('Error ambil dokumen dosen: $e');
+      return {'data': {}};
+    }
+  }
+
   String getBaseUrl() {
     if (kIsWeb) {
       return 'http://127.0.0.1:8000/api';
