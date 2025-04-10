@@ -181,14 +181,10 @@ class _OrmawaPengajuanPageState extends State<OrmawaPengajuanPage> {
       String tujuanPengajuan = '';
       if (_selectedTujuan == 'Dosen' && _selectedDosenId != null) {
         // Cari nama dosen dari ID yang dipilih
-        final selectedDosen = _dosenList.firstWhere(
-          (dosen) => dosen['id'].toString() == _selectedDosenId,
-          orElse: () => {'nama': 'Unknown'},
-        );
-        tujuanPengajuan = selectedDosen['nama'] ?? '';
+        tujuanPengajuan = _selectedDosenId!;
       } else if (_selectedTujuan == 'Kemahasiswaan' &&
           _selectedKemahasiswaanId != null) {
-        tujuanPengajuan = 'Kemahasiswaan';
+        tujuanPengajuan = _selectedKemahasiswaanId!;
       }
 
       final result = await _documentService.submitDocument(
