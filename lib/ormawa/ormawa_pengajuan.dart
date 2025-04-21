@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import '../component/navbar_ormawa.dart';
 import '../services/document_service.dart';
-import '../services/auth_service.dart';
 import 'package:file_picker/file_picker.dart';
-
 import 'dart:io';
 
 // Test
@@ -184,7 +182,7 @@ class _OrmawaPengajuanPageState extends State<OrmawaPengajuanPage> {
         tujuanPengajuan = _selectedDosenId!;
       } else if (_selectedTujuan == 'Kemahasiswaan' &&
           _selectedKemahasiswaanId != null) {
-        tujuanPengajuan = _selectedKemahasiswaanId!;
+        tujuanPengajuan =_selectedKemahasiswaanId!;
       }
 
       final result = await _documentService.submitDocument(

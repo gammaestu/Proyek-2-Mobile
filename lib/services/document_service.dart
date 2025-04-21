@@ -6,9 +6,26 @@ import 'auth_service.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'package:path/path.dart' as path;
+import 'package:dio/dio.dart';
 
 class DocumentService {
   final AuthService _authService = AuthService();
+  late final Dio _dio;
+
+  DocumentService() {
+    _dio = Dio(BaseOptions(
+      baseUrl: AuthService.getBaseUrl(),
+    ));
+    _setupDio();
+  }
+
+  Future<void> _setupDio() async {
+    final token = await _authService.getToken();
+    _dio.options.headers = {
+      'Authorization': 'Bearer $token',
+      'Accept': 'application/json',
+    };
+  }
 
   Future<Map<String, String>> _getHeaders() async {
     final token = await _authService.getToken();
@@ -27,10 +44,10 @@ class DocumentService {
           'success': false,
           'message': 'Token tidak ditemukan',
           'data': {
-            'submitted': 0,
-            'signed': 0,
-            'need_revision': 0,
-            'revised': 0,
+            'diajukan': 0,
+            'ditandatangani': 0,
+            'perlu_revisi': 0,
+            'sudah_direvisi': 0,
           }
         };
       }
@@ -42,34 +59,40 @@ class DocumentService {
       );
 
       print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
+      print('Raw response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        print('Raw API Response: ${response.body}');
+        print('Parsed data: $data');
+
         if (data['success']) {
-          // Map status dari backend ke frontend
-          final stats = data['data'];
+          final stats = data['data'] as Map<String, dynamic>;
+          print('Stats from backend (raw): $stats');
+
+          // Convert all values to integers
+          final convertedStats = stats.map((key, value) {
+            return MapEntry(key, int.tryParse(value?.toString() ?? '0') ?? 0);
+          });
+
+          print('Final converted stats: $convertedStats');
+
           return {
             'success': true,
-            'data': {
-              'submitted': stats['submitted'] ?? 0, // diajukan
-              'signed': stats['signed'] ?? 0, // ditandatangani
-              'need_revision': stats['need_revision'] ?? 0, // perlu_revisi
-              'revised': stats['revised'] ?? 0, // sudah_direvisi
-            },
-          };
-        } else {
-          return {
-            'success': false,
-            'message': data['message'],
-            'data': {
-              'submitted': 0,
-              'signed': 0,
-              'need_revision': 0,
-              'revised': 0,
-            }
+            'data': convertedStats,
           };
         }
+
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Gagal mendapatkan statistik dokumen',
+          'data': {
+            'diajukan': 0,
+            'ditandatangani': 0,
+            'perlu_revisi': 0,
+            'sudah_direvisi': 0,
+          }
+        };
       } else {
         print('Error response: ${response.body}');
         throw Exception(
@@ -81,10 +104,10 @@ class DocumentService {
         'success': false,
         'message': e.toString(),
         'data': {
-          'submitted': 0,
-          'signed': 0,
-          'need_revision': 0,
-          'revised': 0,
+          'diajukan': 0,
+          'ditandatangani': 0,
+          'perlu_revisi': 0,
+          'sudah_direvisi': 0,
         }
       };
     }
@@ -208,6 +231,62 @@ class DocumentService {
     }
   }
 
+  Future<Map<String, dynamic>> getAllDocuments() async {
+    try {
+      await _setupDio();
+      print('Fetching documents from API...');
+      print('Token available: ${await _authService.getToken() != null}');
+
+      final response = await _dio.get(
+        '/ormawa/documents',
+        options: Options(
+          validateStatus: (status) =>
+              true, // Accept all status codes for debugging
+        ),
+      );
+
+      print('Response status: ${response.statusCode}');
+      print('Response data: ${response.data}');
+
+      if (response.statusCode == 200) {
+        if (response.data['success'] == true) {
+          return {
+            'success': true,
+            'data': response.data['data'] ?? [],
+            'message': response.data['message'] ?? 'Success',
+          };
+        } else {
+          print('API returned success: false - ${response.data['message']}');
+          return {
+            'success': false,
+            'message': response.data['message'] ?? 'Failed to load documents',
+            'data': [],
+          };
+        }
+      } else {
+        print('Error response: ${response.data}');
+        return {
+          'success': false,
+          'message': 'Failed to load documents: ${response.statusCode}',
+          'data': [],
+        };
+      }
+    } catch (e) {
+      print('Error in getAllDocuments: $e');
+      if (e is DioException) {
+        print('DioError details: ${e.response?.data}');
+        print('DioError message: ${e.message}');
+        print('DioError type: ${e.type}');
+        print('DioError requestOptions: ${e.requestOptions.path}');
+      }
+      return {
+        'success': false,
+        'message': e.toString(),
+        'data': [],
+      };
+    }
+  }
+
   Future<Map<String, dynamic>> getDosenList() async {
     try {
       final token = await _authService.getToken();
@@ -275,6 +354,175 @@ class DocumentService {
       return {
         'success': false,
         'message': 'Terjadi kesalahan: $e',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> getDocumentsByStatus(String status) async {
+    try {
+      await _setupDio(); // Ensure token is up to date
+      final response = await _dio
+          .get('/ormawa/documents', queryParameters: {'status': status});
+      return response.data;
+    } catch (e) {
+      print('Error in getDocumentsByStatus: $e');
+      return {
+        'success': false,
+        'message': e.toString(),
+        'data': [],
+      };
+    }
+  }
+
+  // Method untuk melihat detail dokumen
+  Future<Map<String, dynamic>> getDocumentDetail(String documentId) async {
+    try {
+      final token = await _authService.getToken();
+      final response = await http.get(
+        Uri.parse('${getBaseUrl()}/documents/$documentId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        return {
+          'success': false,
+          'message': 'Gagal mengambil detail dokumen',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Method untuk menandai dokumen perlu revisi
+  Future<Map<String, dynamic>> markDocumentForRevision(
+      String documentId, String keterangan) async {
+    try {
+      final token = await _authService.getToken();
+      final response = await http.post(
+        Uri.parse('${getBaseUrl()}/documents/$documentId/revision'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'keterangan': keterangan,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        return {
+          'success': false,
+          'message': 'Gagal menandai dokumen untuk revisi',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Method untuk download dokumen
+  Future<Map<String, dynamic>> downloadDocument(String documentId) async {
+    try {
+      final token = await _authService.getToken();
+      final response = await http.get(
+        Uri.parse('${getBaseUrl()}/documents/$documentId/download'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'data': response.bodyBytes,
+          'filename': response.headers['content-disposition'] ?? 'document.pdf',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Gagal mengunduh dokumen',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Method untuk menambah QR code
+  Future<Map<String, dynamic>> addQrCode(
+      String documentId, Map<String, dynamic> position) async {
+    try {
+      final token = await _authService.getToken();
+      final response = await http.post(
+        Uri.parse('${getBaseUrl()}/documents/$documentId/qr-code'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'position': position,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        return {
+          'success': false,
+          'message': 'Gagal menambahkan QR code',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Method untuk verifikasi dokumen
+  Future<Map<String, dynamic>> verifyDocument(String documentId) async {
+    try {
+      final token = await _authService.getToken();
+      final response = await http.post(
+        Uri.parse('${getBaseUrl()}/documents/$documentId/verify'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        return {
+          'success': false,
+          'message': 'Gagal memverifikasi dokumen',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error: ${e.toString()}',
       };
     }
   }

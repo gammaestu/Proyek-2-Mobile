@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../component/navbar_ormawa.dart';
 import '../services/document_service.dart';
 import '../services/auth_service.dart';
+import './ormawa_riwayat.dart';
 
 class OrmawaBerandaPage extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -51,14 +52,41 @@ class _OrmawaBerandaPageState extends State<OrmawaBerandaPage> {
   Future<void> _loadDocumentStats() async {
     try {
       final result = await _documentService.getDocumentStats();
+      print('Raw result from getDocumentStats: $result');
+
       if (mounted) {
-        setState(() {
-          _documentStats = result['data'];
-          _isLoading = false;
-        });
-        print('Document Stats: $_documentStats'); // Debug print
+        if (result['success'] == true && result['data'] != null) {
+          final data = result['data'] as Map<String, dynamic>;
+          print('Document stats before setState:');
+          data.forEach((key, value) {
+            print('$key: $value (${value.runtimeType})');
+          });
+
+          setState(() {
+            _documentStats = data;
+            _isLoading = false;
+          });
+
+          // Debug prints untuk memastikan nilai yang diterima
+          print('Document stats after setState:');
+          _documentStats?.forEach((key, value) {
+            print('$key: $value (${value.runtimeType})');
+          });
+        } else {
+          print('Invalid response format or error: $result');
+          setState(() {
+            _documentStats = {
+              'submitted': 0,
+              'signed': 0,
+              'need_revision': 0,
+              'revised': 0,
+            };
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
+      print('Error in _loadDocumentStats: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -88,7 +116,35 @@ class _OrmawaBerandaPageState extends State<OrmawaBerandaPage> {
     return name.isNotEmpty ? name[0].toUpperCase() : 'U';
   }
 
-  Widget _buildStatCard(String title, int count, Color color, IconData icon) {
+  Widget _buildStatCard(
+      String title, dynamic count, Color color, IconData icon) {
+    // Pastikan count adalah integer
+    final intCount =
+        count is int ? count : int.tryParse(count?.toString() ?? '0') ?? 0;
+    print('Building stat card:');
+    print('Title: $title');
+    print('Original count: $count (${count.runtimeType})');
+    print('Converted count: $intCount (${intCount.runtimeType})');
+
+    // Tentukan status filter berdasarkan judul
+    String statusFilter;
+    switch (title) {
+      case 'Dokumen Diajukan':
+        statusFilter = 'submitted';
+        break;
+      case 'Dokumen Tertanda':
+        statusFilter = 'ditandatangani';
+        break;
+      case 'Perlu Direvisi':
+        statusFilter = 'perlu_revisi';
+        break;
+      case 'Sudah Direvisi':
+        statusFilter = 'sudah_direvisi';
+        break;
+      default:
+        statusFilter = '';
+    }
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 8),
@@ -97,7 +153,15 @@ class _OrmawaBerandaPageState extends State<OrmawaBerandaPage> {
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
           onTap: () {
-            // TODO: Navigate to filtered document list
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => OrmawaRiwayatPage(
+                  userData: _userData,
+                  statusFilter: statusFilter,
+                ),
+              ),
+            );
           },
           borderRadius: BorderRadius.circular(8),
           child: Padding(
@@ -111,7 +175,7 @@ class _OrmawaBerandaPageState extends State<OrmawaBerandaPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        count.toString(),
+                        intCount.toString(),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 24,
@@ -187,26 +251,26 @@ class _OrmawaBerandaPageState extends State<OrmawaBerandaPage> {
                   const Center(child: CircularProgressIndicator())
                 else ...[
                   _buildStatCard(
-                    'Surat Telah Diajukan',
-                    _documentStats?['submitted'] ?? 0,
+                    'Dokumen Diajukan',
+                    _documentStats?['diajukan'] ?? 0,
                     Colors.orange,
                     Icons.description_outlined,
                   ),
                   _buildStatCard(
-                    'Surat Sudah Ditandatangani',
-                    _documentStats?['signed'] ?? 0,
+                    'Dokumen Tertanda',
+                    _documentStats?['ditandatangani'] ?? 0,
                     Colors.green,
                     Icons.check_circle_outline,
                   ),
                   _buildStatCard(
-                    'Surat Perlu Direvisi',
-                    _documentStats?['need_revision'] ?? 0,
+                    'Perlu Direvisi',
+                    _documentStats?['perlu_revisi'] ?? 0,
                     Colors.red,
                     Icons.warning_outlined,
                   ),
                   _buildStatCard(
-                    'Surat Sudah Direvisi',
-                    _documentStats?['revised'] ?? 0,
+                    'Sudah Direvisi',
+                    _documentStats?['sudah_direvisi'] ?? 0,
                     Colors.blue,
                     Icons.edit_document,
                   ),

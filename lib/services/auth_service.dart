@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:io';
 
 class AuthService {
   // Konstanta key untuk SharedPreferences
@@ -10,10 +12,19 @@ class AuthService {
 
   // Mendapatkan Base URL sesuai platform
   static String getBaseUrl() {
-    const bool kIsWeb = identical(0, 0.0);
-    return kIsWeb
-        ? 'http://localhost:8000/api' // Untuk Flutter Web
-        : 'http://192.168.104.8:8000/api'; // Untuk Android (gunakan IP jaringan WiFi kamu)
+    if (kIsWeb) {
+      return 'http://localhost:8000/api';
+    }
+    // Untuk Android emulator
+    if (Platform.isAndroid) {
+      return 'http://10.0.2.2:8000/api';
+    }
+    // Untuk iOS simulator
+    if (Platform.isIOS) {
+      return 'http://localhost:8000/api';
+    }
+    // Default fallback
+    return 'http://localhost:8000/api';
   }
 
   // Fungsi login untuk berbagai role
@@ -27,6 +38,8 @@ class AuthService {
       final baseUrl = getBaseUrl();
       String endpoint = '';
       Map<String, dynamic> body = {};
+
+      print('Login attempt - Role: $role'); // Debug print
 
       // Tentukan endpoint & request body berdasarkan role
       switch (role) {
@@ -46,40 +59,52 @@ class AuthService {
           return {'success': false, 'message': 'Role tidak dikenali'};
       }
 
-      final response = await http.post(
+      print('Attempting login to: $baseUrl$endpoint'); // Debug print
+      print('Request body: ${jsonEncode(body)}'); // Debug print
+
+      final response = await http
+          .post(
         Uri.parse('$baseUrl$endpoint'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
         body: jsonEncode(body),
-      ).timeout(
+      )
+          .timeout(
         const Duration(seconds: 15),
-        onTimeout: () =>
-            throw TimeoutException('Koneksi timeout. Periksa koneksi Anda.'),
+        onTimeout: () {
+          print('Connection timeout'); // Debug print
+          throw TimeoutException('Koneksi timeout. Periksa koneksi Anda.');
+        },
       );
 
-      print('Status Response: ${response.statusCode}');
-      print('Isi Response: ${response.body}');
+      print('Response status code: ${response.statusCode}'); // Debug print
+      print('Response body: ${response.body}'); // Debug print
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final prefs = await SharedPreferences.getInstance();
 
-         final token = data['data']?['token'];
-          late final dynamic userData;
-            if (role.toLowerCase() == 'ormawa') {
-              userData = data['data']?['ormawa'];
-            } else if (role.toLowerCase() == 'dosen') {
-              userData = data['data']?['dosen'];
-            } else {
-              userData = data['data']?['kemahasiswaan'];
-            }
+        final token = data['data']?['token'];
+        print('Received token: ${token != null}'); // Debug print
 
+        late final dynamic userData;
+        if (role.toLowerCase() == 'ormawa') {
+          userData = data['data']?['ormawa'];
+        } else if (role.toLowerCase() == 'dosen') {
+          userData = data['data']?['dosen'];
+        } else {
+          userData = data['data']?['kemahasiswaan'];
+        }
+
+        print('User data received: ${userData != null}'); // Debug print
 
         if (token != null && userData != null) {
           await prefs.setString(tokenKey, token);
           await prefs.setString(userKey, jsonEncode(userData));
+          print(
+              'Login successful - Data saved to SharedPreferences'); // Debug print
 
           return {
             'success': true,
@@ -88,24 +113,29 @@ class AuthService {
           };
         }
 
+        print('Login failed - Incomplete data received'); // Debug print
         return {
           'success': false,
           'message': 'Data login tidak lengkap',
         };
       } else {
-        print('Login gagal dengan status: ${response.statusCode}');
-        print('Response body: ${response.body}');
+        print('Login failed - HTTP ${response.statusCode}'); // Debug print
+        print('Error response: ${response.body}'); // Debug print
+
         var message = 'Terjadi kesalahan';
         try {
           final data = jsonDecode(response.body);
           message = data['message'] ?? message;
-        } catch (_) {}
+        } catch (e) {
+          print('Error parsing response: $e'); // Debug print
+        }
         return {
           'success': false,
           'message': message,
         };
       }
     } catch (e) {
+      print('Login error: $e'); // Debug print
       return {
         'success': false,
         'message': 'Terjadi kesalahan koneksi: ${e.toString()}',
