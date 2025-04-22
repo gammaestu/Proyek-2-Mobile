@@ -133,7 +133,7 @@ class _OrmawaBerandaPageState extends State<OrmawaBerandaPage> {
         statusFilter = 'submitted';
         break;
       case 'Dokumen Tertanda':
-        statusFilter = 'ditandatangani';
+        statusFilter = 'signed';
         break;
       case 'Perlu Direvisi':
         statusFilter = 'perlu_revisi';
@@ -252,13 +252,13 @@ class _OrmawaBerandaPageState extends State<OrmawaBerandaPage> {
                 else ...[
                   _buildStatCard(
                     'Dokumen Diajukan',
-                    _documentStats?['diajukan'] ?? 0,
+                    _documentStats?['submitted'] ?? 0,
                     Colors.orange,
                     Icons.description_outlined,
                   ),
                   _buildStatCard(
                     'Dokumen Tertanda',
-                    _documentStats?['ditandatangani'] ?? 0,
+                    _documentStats?['signed'] ?? 0,
                     Colors.green,
                     Icons.check_circle_outline,
                   ),

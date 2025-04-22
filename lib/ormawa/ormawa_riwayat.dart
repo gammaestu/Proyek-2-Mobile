@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import '../component/navbar_ormawa.dart';
 import '../services/document_service.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'dart:io';
+import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
 
 class OrmawaRiwayatPage extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -17,7 +22,9 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
   Map<String, dynamic>? _documentStats;
   List<Map<String, dynamic>> _documents = [];
   bool _isLoading = true;
+  bool _isPdfLoading = true;
   String? _currentFilter;
+  String? _error;
 
   @override
   void initState() {
@@ -56,14 +63,32 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
       if (mounted) {
         if (result['success'] == true && result['data'] != null) {
           final allDocuments = List<Map<String, dynamic>>.from(result['data']);
+          print('All documents: $allDocuments');
+          print('Current filter: $_currentFilter');
 
           // Filter documents based on status if filter is set
           final filteredDocuments = _currentFilter != null
-              ? allDocuments
-                  .where((doc) =>
-                      doc['status']?.toString().toLowerCase() ==
-                      _currentFilter?.toLowerCase())
-                  .toList()
+              ? allDocuments.where((doc) {
+                  final docStatus = doc['status']?.toString().toLowerCase();
+                  final filterStatus = _currentFilter?.toLowerCase();
+                  print(
+                      'Document status: $docStatus, Filter status: $filterStatus');
+
+                  // Handle multiple status values for the same filter
+                  switch (filterStatus) {
+                    case 'submitted':
+                      return docStatus == 'diajukan';
+                    case 'signed':
+                      return docStatus == 'ditandatangani' ||
+                          docStatus == 'disahkan';
+                    case 'perlu_revisi':
+                      return docStatus == 'butuh revisi';
+                    case 'sudah_direvisi':
+                      return docStatus == 'sudah direvisi';
+                    default:
+                      return false;
+                  }
+                }).toList()
               : allDocuments;
 
           print('Filtered documents: $filteredDocuments');
@@ -361,11 +386,13 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     ElevatedButton(
-                      onPressed: () => _viewDocument(document['id']),
+                      onPressed: () => _viewDocument(document['id'].toString(),
+                          document['filename'] ?? 'Dokumen'),
                       child: const Text('Lihat'),
                     ),
                     ElevatedButton(
-                      onPressed: () => _downloadDocument(document['id']),
+                      onPressed: () =>
+                          _downloadDocument(document['id'].toString()),
                       child: const Text('Download'),
                     ),
                   ],
@@ -384,25 +411,108 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
     );
   }
 
-  Future<void> _viewDocument(String documentId) async {
+  Future<void> _viewDocument(String documentId, String fileName) async {
     try {
-      final result = await _documentService.getDocumentDetail(documentId);
-      if (result['success']) {
-        // Implement document viewer here
-        print('View document: ${result['data']}');
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(result['message'] ?? 'Failed to view document')),
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      print('Requesting document file for ID: $documentId');
+      final response = await _documentService.getDocumentFile(documentId);
+      print('Response received: $response');
+
+      if (response['success'] == true && response['data'] != null) {
+        final base64String = response['data'] as String;
+        print('Base64 string length: ${base64String.length}');
+
+        try {
+          final bytes = base64.decode(base64String);
+          print('Decoded bytes length: ${bytes.length}');
+
+          if (!mounted) return;
+
+          // Show loading indicator
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext context) {
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            },
           );
+
+          // Navigate to PDF viewer
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Scaffold(
+                appBar: AppBar(
+                  title: Text(fileName),
+                  leading: IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ),
+                body: Container(
+                  color: Colors.white,
+                  child: SfPdfViewer.memory(
+                    Uint8List.fromList(bytes),
+                    enableDocumentLinkAnnotation: true,
+                    enableHyperlinkNavigation: true,
+                    pageSpacing: 0,
+                    onDocumentLoadFailed:
+                        (PdfDocumentLoadFailedDetails details) {
+                      print(
+                          'PDF load failed: ${details.error}, ${details.description}');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text(
+                                'Gagal memuat PDF: ${details.description}')),
+                      );
+                    },
+                    onDocumentLoaded: (PdfDocumentLoadedDetails details) {
+                      print(
+                          'PDF loaded successfully with ${details.document.pages.count} pages');
+                    },
+                  ),
+                ),
+              ),
+            ),
+          );
+
+          // Hide loading indicator
+          if (mounted && Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          }
+        } catch (e) {
+          print('Error processing PDF file: $e');
+          if (mounted && Navigator.of(context).canPop()) {
+            Navigator.of(context).pop(); // Hide loading indicator if shown
+          }
+          throw Exception('Gagal memproses file PDF: $e');
         }
+      } else {
+        throw Exception(response['message'] ?? 'Format response tidak valid');
       }
     } catch (e) {
+      print('Error viewing document: $e');
       if (mounted) {
+        setState(() {
+          _error = 'Gagal membuka dokumen: $e';
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          SnackBar(content: Text('Gagal membuka dokumen: $e')),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -504,34 +614,34 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
             ),
             ListTile(
               title: const Text('Diajukan'),
-              selected: _currentFilter == 'diajukan',
+              selected: _currentFilter == 'submitted',
               onTap: () {
                 Navigator.pop(context);
-                _applyFilter('diajukan');
+                _applyFilter('submitted');
               },
             ),
             ListTile(
               title: const Text('Ditandatangani'),
-              selected: _currentFilter == 'ditandatangani',
+              selected: _currentFilter == 'signed',
               onTap: () {
                 Navigator.pop(context);
-                _applyFilter('ditandatangani');
+                _applyFilter('signed');
               },
             ),
             ListTile(
               title: const Text('Butuh Revisi'),
-              selected: _currentFilter == 'butuh revisi',
+              selected: _currentFilter == 'perlu_revisi',
               onTap: () {
                 Navigator.pop(context);
-                _applyFilter('butuh revisi');
+                _applyFilter('perlu_revisi');
               },
             ),
             ListTile(
               title: const Text('Sudah Direvisi'),
-              selected: _currentFilter == 'sudah direvisi',
+              selected: _currentFilter == 'sudah_direvisi',
               onTap: () {
                 Navigator.pop(context);
-                _applyFilter('sudah direvisi');
+                _applyFilter('sudah_direvisi');
               },
             ),
           ],

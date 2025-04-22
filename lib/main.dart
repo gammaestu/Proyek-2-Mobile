@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'login_page.dart';
 import 'ormawa/ormawa_login.dart';
 import 'ormawa/ormawa_beranda.dart';
@@ -13,6 +14,7 @@ import 'dosen/riwayat_dosen.dart';
 import 'dosen/dosen_profile.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
@@ -23,7 +25,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Signix',
-       debugShowCheckedModeBanner: false,
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
@@ -44,7 +46,8 @@ class MyApp extends StatelessWidget {
           case '/Ormawa':
             return MaterialPageRoute(builder: (_) => const OrmawaLoginPage());
           case '/pengajuan':
-            return MaterialPageRoute(builder: (_) => const OrmawaPengajuanPage());
+            return MaterialPageRoute(
+                builder: (_) => const OrmawaPengajuanPage());
           case '/riwayat ormawa':
             return MaterialPageRoute(builder: (_) => const OrmawaRiwayatPage());
           case '/profil ormawa':
@@ -54,8 +57,9 @@ class MyApp extends StatelessWidget {
           case '/dosen/beranda':
             return MaterialPageRoute(builder: (_) => const DosenBerandaPage());
           case '/dosen/pengesahan':
-            return MaterialPageRoute(builder: (_) => const DosenPengesahanPage());
-          
+            return MaterialPageRoute(
+                builder: (_) => const DosenPengesahanPage());
+
           default:
             return MaterialPageRoute(
               builder: (_) => const Scaffold(

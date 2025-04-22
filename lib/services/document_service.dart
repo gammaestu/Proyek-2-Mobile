@@ -44,8 +44,8 @@ class DocumentService {
           'success': false,
           'message': 'Token tidak ditemukan',
           'data': {
-            'diajukan': 0,
-            'ditandatangani': 0,
+            'submitted': 0,
+            'signed': 0,
             'perlu_revisi': 0,
             'sudah_direvisi': 0,
           }
@@ -69,9 +69,11 @@ class DocumentService {
         if (data['success']) {
           final stats = data['data'] as Map<String, dynamic>;
           print('Stats from backend (raw): $stats');
+          print('Available keys in stats: ${stats.keys.toList()}');
 
           // Convert all values to integers
           final convertedStats = stats.map((key, value) {
+            print('Converting key: $key, value: $value');
             return MapEntry(key, int.tryParse(value?.toString() ?? '0') ?? 0);
           });
 
@@ -87,8 +89,8 @@ class DocumentService {
           'success': false,
           'message': data['message'] ?? 'Gagal mendapatkan statistik dokumen',
           'data': {
-            'diajukan': 0,
-            'ditandatangani': 0,
+            'submitted': 0,
+            'signed': 0,
             'perlu_revisi': 0,
             'sudah_direvisi': 0,
           }
@@ -104,8 +106,8 @@ class DocumentService {
         'success': false,
         'message': e.toString(),
         'data': {
-          'diajukan': 0,
-          'ditandatangani': 0,
+          'submitted': 0,
+          'signed': 0,
           'perlu_revisi': 0,
           'sudah_direvisi': 0,
         }
@@ -378,26 +380,51 @@ class DocumentService {
   Future<Map<String, dynamic>> getDocumentDetail(String documentId) async {
     try {
       final token = await _authService.getToken();
-      final response = await http.get(
-        Uri.parse('${getBaseUrl()}/documents/$documentId'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      );
 
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
+      if (token == null) {
+        print('Token is null');
         return {
           'success': false,
-          'message': 'Gagal mengambil detail dokumen',
+          'message': 'Token tidak ditemukan',
         };
       }
+
+      final baseUrl = AuthService.getBaseUrl();
+      final url = '$baseUrl/ormawa/documents/$documentId';
+      print('Requesting document detail from: $url');
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: await _getHeaders(),
+      );
+
+      print('Document detail response status: ${response.statusCode}');
+      print('Document detail response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success']) {
+          print('Document detail retrieved successfully');
+          return {
+            'success': true,
+            'data': data['data'],
+          };
+        }
+        print('API returned success: false - ${data['message']}');
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Gagal mendapatkan detail dokumen',
+        };
+      } else {
+        print('Error response: ${response.body}');
+        throw Exception(
+            'Failed to load document detail: ${response.statusCode}');
+      }
     } catch (e) {
+      print('Error in getDocumentDetail: $e');
       return {
         'success': false,
-        'message': 'Error: ${e.toString()}',
+        'message': e.toString(),
       };
     }
   }
@@ -523,6 +550,50 @@ class DocumentService {
       return {
         'success': false,
         'message': 'Error: ${e.toString()}',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> getDocumentFile(String documentId) async {
+    try {
+      final token = await _authService.getToken();
+      if (token == null) {
+        return {
+          'success': false,
+          'message': 'Token tidak ditemukan',
+        };
+      }
+
+      final response = await _dio.get(
+        '/ormawa/documents/$documentId/file',
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final bytes = response.data as List<int>;
+        final base64String = base64Encode(bytes);
+
+        return {
+          'success': true,
+          'data': base64String,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Gagal mengambil file dokumen',
+        };
+      }
+    } catch (e) {
+      print('Error in getDocumentFile: $e');
+      return {
+        'success': false,
+        'message': e.toString(),
       };
     }
   }
