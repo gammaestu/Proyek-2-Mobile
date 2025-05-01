@@ -1,8 +1,61 @@
 import 'package:flutter/material.dart';
 import '../component/navbar_dosen.dart';
+import '../services/document_service.dart';
 
-class DosenRiwayatPage extends StatelessWidget {
-  const DosenRiwayatPage({super.key, Map<String, dynamic>? userData});
+class DosenRiwayatPage extends StatefulWidget {
+  final Map<String, dynamic>? userData;
+  const DosenRiwayatPage({super.key, this.userData});
+
+  @override
+  State<DosenRiwayatPage> createState() => _DosenRiwayatPageState();
+}
+
+class _DosenRiwayatPageState extends State<DosenRiwayatPage> {
+  final int _selectedIndex = 2;
+  final _documentService = DocumentService();
+  List<Map<String, dynamic>> _documents = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDocuments();
+  }
+
+  Future<void> _loadDocuments() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final result = await _documentService.getAllDocuments();
+      if (mounted) {
+        final allDocuments = List<Map<String, dynamic>>.from(result['data'] ?? []);
+        final filtered = _filterApprovedOrRejected(allDocuments);
+
+        setState(() {
+          _documents = filtered;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _documents = [];
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  List<Map<String, dynamic>> _filterApprovedOrRejected(List<Map<String, dynamic>> docs) {
+    return docs.where((doc) {
+      final status = doc['status']?.toString().toLowerCase();
+      return status == 'disetujui' || status == 'ditolak';
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -10,135 +63,67 @@ class DosenRiwayatPage extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.blue,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              "SIGNIX",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Row(
-              children: [
-                const Text(
-                  "Dosen A",
-                  style: TextStyle(color: Colors.white, fontSize: 14),
-                ),
-                const SizedBox(width: 10),
-                CircleAvatar(
-                  backgroundColor: Colors.white,
-                  radius: 16,
-                  child: Icon(
-                    Icons.person,
-                    color: Colors.blue,
-                    size: 20,
-                  ),
-                ),
-              ],
-            )
-          ],
-        ),
+        title: const Text("Riwayat Pengesahan Dokumen"),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Bagian atas (kotak placeholder)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _documents.isEmpty
+              ? const Center(child: Text('Tidak ada dokumen disetujui/ditolak'))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _documents.length,
+                  itemBuilder: (context, index) {
+                    final document = _documents[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      child: ListTile(
+                        title: Text('Nomor: ${document['nomor_surat'] ?? '-'}'),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Hal: ${document['hal'] ?? '-'}'),
+                            Text('Status: ${document['status'] ?? '-'}'),
+                          ],
+                        ),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        onTap: () => _showDocumentDetail(context, document),
+                      ),
+                    );
+                  },
+                ),
+      bottomNavigationBar: NavbarDosen(
+        currentIndex: _selectedIndex,
+        userData: widget.userData,
+      ),
+    );
+  }
+
+  void _showDocumentDetail(
+      BuildContext context, Map<String, dynamic> document) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Detail Dokumen'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  height: 50,
-                  width: MediaQuery.of(context).size.width * 0.4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                Container(
-                  height: 50,
-                  width: MediaQuery.of(context).size.width * 0.4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
+                Text('Nomor Surat: ${document['nomor_surat'] ?? '-'}'),
+                Text('Hal: ${document['hal'] ?? '-'}'),
+                Text('Status: ${document['status'] ?? '-'}'),
+                Text('Tujuan: ${document['tujuan_pengajuan'] ?? '-'}'),
               ],
             ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  height: 50,
-                  width: MediaQuery.of(context).size.width * 0.4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                Container(
-                  height: 50,
-                  width: MediaQuery.of(context).size.width * 0.4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Judul Riwayat
-            const Text(
-              "Riwayat",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-
-            // Filter Button Placeholder
-            Row(
-              children: [
-                Container(
-                  height: 30,
-                  width: 50,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  height: 30,
-                  width: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // List Riwayat Placeholder
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Tutup'),
             ),
           ],
-        ),
-      ),
-      bottomNavigationBar: const NavbarDosen(currentIndex: 2),
+        );
+      },
     );
   }
 }

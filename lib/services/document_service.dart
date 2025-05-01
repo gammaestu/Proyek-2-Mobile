@@ -624,4 +624,16 @@ class DocumentService {
       };
     }
   }
+
+  Future<String?> getDocumentFileUrl(String documentId) async {
+  final baseUrl = getBaseUrl(); // misalnya https://yourdomain.com/api
+  try {
+    final url = '$baseUrl/documents/$documentId/file';
+    return url;
+  } catch (e) {
+    print('Error generating file URL: $e');
+    return null;
+  }
+}
+
 }
