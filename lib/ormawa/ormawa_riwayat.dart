@@ -6,6 +6,8 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class OrmawaRiwayatPage extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -414,36 +416,34 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
   Future<void> _viewDocument(String documentId, String fileName) async {
     try {
       setState(() {
-        _isLoading = true;
+        _isPdfLoading = true;
         _error = null;
       });
 
-      print('Requesting document file for ID: $documentId');
+      print('=== MULAI MEMUAT PDF ===');
+      print('Document ID: $documentId');
+      print('File Name: $fileName');
+
       final response = await _documentService.getDocumentFile(documentId);
-      print('Response received: $response');
+      print('Response dari server:');
+      print('Success: ${response['success']}');
+      print('Message: ${response['message']}');
+      print('Data length: ${response['data']?.length ?? 0}');
 
       if (response['success'] == true && response['data'] != null) {
         final base64String = response['data'] as String;
-        print('Base64 string length: ${base64String.length}');
+        print('Panjang string base64: ${base64String.length}');
 
         try {
+          if (base64String.isEmpty) {
+            throw Exception('Data PDF kosong');
+          }
+
           final bytes = base64.decode(base64String);
-          print('Decoded bytes length: ${bytes.length}');
+          print('Panjang bytes yang didecode: ${bytes.length}');
 
           if (!mounted) return;
 
-          // Show loading indicator
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (BuildContext context) {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
-            },
-          );
-
-          // Navigate to PDF viewer
           await Navigator.push(
             context,
             MaterialPageRoute(
@@ -457,63 +457,66 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
                     },
                   ),
                 ),
-                body: Container(
-                  color: Colors.white,
-                  child: SfPdfViewer.memory(
-                    Uint8List.fromList(bytes),
-                    enableDocumentLinkAnnotation: true,
-                    enableHyperlinkNavigation: true,
-                    pageSpacing: 0,
-                    onDocumentLoadFailed:
-                        (PdfDocumentLoadFailedDetails details) {
-                      print(
-                          'PDF load failed: ${details.error}, ${details.description}');
+                body: SfPdfViewer.memory(
+                  bytes,
+                  enableDocumentLinkAnnotation: true,
+                  enableHyperlinkNavigation: true,
+                  pageSpacing: 0,
+                  onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
+                    print('=== ERROR PDF VIEWER ===');
+                    print('Error: ${details.error}');
+                    print('Description: ${details.description}');
+                    if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                            content: Text(
-                                'Gagal memuat PDF: ${details.description}')),
+                          content:
+                              Text('Gagal memuat PDF: ${details.description}'),
+                          duration: const Duration(seconds: 5),
+                        ),
                       );
-                    },
-                    onDocumentLoaded: (PdfDocumentLoadedDetails details) {
-                      print(
-                          'PDF loaded successfully with ${details.document.pages.count} pages');
-                    },
-                  ),
+                    }
+                  },
+                  onDocumentLoaded: (PdfDocumentLoadedDetails details) {
+                    print('=== PDF BERHASIL DIMUAT ===');
+                    print('Jumlah halaman: ${details.document.pages.count}');
+                  },
                 ),
               ),
             ),
           );
-
-          // Hide loading indicator
-          if (mounted && Navigator.of(context).canPop()) {
-            Navigator.of(context).pop();
-          }
         } catch (e) {
-          print('Error processing PDF file: $e');
-          if (mounted && Navigator.of(context).canPop()) {
-            Navigator.of(context).pop(); // Hide loading indicator if shown
-          }
+          print('=== ERROR MEMPROSES PDF ===');
+          print('Error: $e');
+          print('Stack trace: ${StackTrace.current}');
           throw Exception('Gagal memproses file PDF: $e');
         }
       } else {
+        print('=== ERROR RESPONSE SERVER ===');
+        print('Message: ${response['message']}');
         throw Exception(response['message'] ?? 'Format response tidak valid');
       }
     } catch (e) {
-      print('Error viewing document: $e');
+      print('=== ERROR UMUM ===');
+      print('Error: $e');
+      print('Stack trace: ${StackTrace.current}');
       if (mounted) {
         setState(() {
           _error = 'Gagal membuka dokumen: $e';
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal membuka dokumen: $e')),
+          SnackBar(
+            content: Text('Gagal membuka dokumen: $e'),
+            duration: const Duration(seconds: 5),
+          ),
         );
       }
     } finally {
       if (mounted) {
         setState(() {
-          _isLoading = false;
+          _isPdfLoading = false;
         });
       }
+      print('=== SELESAI MEMUAT PDF ===');
     }
   }
 

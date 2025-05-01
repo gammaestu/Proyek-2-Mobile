@@ -15,16 +15,8 @@ class AuthService {
     if (kIsWeb) {
       return 'http://localhost:8000/api';
     }
-    // Untuk Android emulator
-    if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000/api';
-    }
-    // Untuk iOS simulator
-    if (Platform.isIOS) {
-      return 'http://localhost:8000/api';
-    }
-    // Default fallback
-    return 'http://localhost:8000/api';
+    // Untuk HP Android
+    return 'http://192.168.13.8:8000/api';
   }
 
   // Fungsi login untuk berbagai role

@@ -143,12 +143,10 @@ class DocumentService {
 
   String getBaseUrl() {
     if (kIsWeb) {
-      return 'http://127.0.0.1:8000/api';
+      return 'http://localhost:8000/api';
     }
-    // For Android emulator and iOS simulator
-    return Platform.isAndroid
-        ? 'http://10.0.2.2:8000/api'
-        : 'http://localhost:8000/api';
+    // Untuk HP Android
+    return 'http://192.168.13.8:8000/api';
   }
 
   Future<Map<String, dynamic>> submitDocument({
@@ -567,7 +565,7 @@ class DocumentService {
       final response = await _dio.get(
         '/ormawa/documents/$documentId/file',
         options: Options(
-          responseType: ResponseType.bytes,
+          responseType: ResponseType.json,
           headers: {
             'Authorization': 'Bearer $token',
             'Accept': 'application/json',
@@ -576,21 +574,50 @@ class DocumentService {
       );
 
       if (response.statusCode == 200) {
-        final bytes = response.data as List<int>;
-        final base64String = base64Encode(bytes);
+        final data = response.data;
+        if (data['success'] == true && data['data'] != null) {
+          // Verify the base64 string is valid
+          final base64String = data['data'] as String;
+          if (base64String.isEmpty) {
+            return {
+              'success': false,
+              'message': 'Data PDF kosong',
+            };
+          }
 
-        return {
-          'success': true,
-          'data': base64String,
-        };
+          // Verify the content type is PDF
+          final contentType = data['content_type'] as String?;
+          if (contentType != null &&
+              !contentType.toLowerCase().contains('pdf')) {
+            return {
+              'success': false,
+              'message': 'File bukan PDF yang valid',
+            };
+          }
+
+          return {
+            'success': true,
+            'data': base64String,
+          };
+        } else {
+          return {
+            'success': false,
+            'message': data['message'] ?? 'Gagal mengambil file dokumen',
+          };
+        }
       } else {
         return {
           'success': false,
-          'message': 'Gagal mengambil file dokumen',
+          'message': 'Gagal mengambil file dokumen: ${response.statusCode}',
         };
       }
     } catch (e) {
       print('Error in getDocumentFile: $e');
+      if (e is DioException) {
+        print('DioError details: ${e.response?.data}');
+        print('DioError message: ${e.message}');
+        print('DioError type: ${e.type}');
+      }
       return {
         'success': false,
         'message': e.toString(),
