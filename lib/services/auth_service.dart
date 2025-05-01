@@ -10,13 +10,35 @@ class AuthService {
   static const String tokenKey = 'token';
   static const String userKey = 'user';
 
+  // Base URL untuk API - bisa diubah sesuai kebutuhan
+  static const String _defaultBaseUrl =
+      'http://192.168.206.8:8000'; // IP default
+  static String? _customBaseUrl; // Untuk menyimpan URL kustom
+
+  // Setter untuk mengubah base URL
+  static void setCustomBaseUrl(String url) {
+    _customBaseUrl = url;
+  }
+
   // Mendapatkan Base URL sesuai platform
   static String getBaseUrl() {
+    if (_customBaseUrl != null) {
+      return '$_customBaseUrl/api';
+    }
+
     if (kIsWeb) {
       return 'http://localhost:8000/api';
     }
-    // Untuk HP Android
-    return 'http://192.168.13.8:8000/api';
+
+    if (Platform.isAndroid) {
+      // Untuk emulator Android
+      if (Platform.environment.containsKey('ANDROID_EMU_REDIRECT_TO_HOST')) {
+        return 'http://10.0.2.2:8000/api';
+      }
+    }
+
+    // Untuk device fisik, gunakan IP default
+    return '$_defaultBaseUrl/api';
   }
 
   // Fungsi login untuk berbagai role
