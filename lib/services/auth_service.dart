@@ -12,7 +12,7 @@ class AuthService {
 
   // Base URL untuk API - bisa diubah sesuai kebutuhan
   static const String _defaultBaseUrl =
-      'http://192.168.206.8:8000'; // IP default
+      'http://192.168.177.8:8000'; // IP laptop di jaringan hotspot
   static String? _customBaseUrl; // Untuk menyimpan URL kustom
 
   // Setter untuk mengubah base URL

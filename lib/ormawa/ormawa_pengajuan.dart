@@ -182,7 +182,7 @@ class _OrmawaPengajuanPageState extends State<OrmawaPengajuanPage> {
         tujuanPengajuan = _selectedDosenId!;
       } else if (_selectedTujuan == 'Kemahasiswaan' &&
           _selectedKemahasiswaanId != null) {
-        tujuanPengajuan =_selectedKemahasiswaanId!;
+        tujuanPengajuan = _selectedKemahasiswaanId!;
       }
 
       final result = await _documentService.submitDocument(

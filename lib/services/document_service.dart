@@ -464,29 +464,57 @@ class DocumentService {
   Future<Map<String, dynamic>> downloadDocument(String documentId) async {
     try {
       final token = await _authService.getToken();
-      final response = await http.get(
-        Uri.parse('${getBaseUrl()}/documents/$documentId/download'),
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
+      if (token == null) {
+        return {
+          'success': false,
+          'message': 'Token tidak ditemukan',
+        };
+      }
+
+      final response = await _dio.get(
+        '/ormawa/documents/$documentId/file',
+        options: Options(
+          responseType: ResponseType.json,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
       );
 
+      print('Download response status: ${response.statusCode}');
+      print('Download response data: ${response.data}');
+
       if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'data': response.bodyBytes,
-          'filename': response.headers['content-disposition'] ?? 'document.pdf',
-        };
+        final data = response.data;
+        if (data['success'] == true && data['data'] != null) {
+          return {
+            'success': true,
+            'data': data['data'],
+            'filename': data['filename'] ?? 'document.pdf',
+          };
+        } else {
+          return {
+            'success': false,
+            'message': data['message'] ?? 'Gagal mengunduh dokumen',
+          };
+        }
       } else {
         return {
           'success': false,
-          'message': 'Gagal mengunduh dokumen',
+          'message': 'Gagal mengunduh dokumen: ${response.statusCode}',
         };
       }
     } catch (e) {
+      print('Error in downloadDocument: $e');
+      if (e is DioException) {
+        print('DioError details: ${e.response?.data}');
+        print('DioError message: ${e.message}');
+        print('DioError type: ${e.type}');
+      }
       return {
         'success': false,
-        'message': 'Error: ${e.toString()}',
+        'message': e.toString(),
       };
     }
   }

@@ -8,6 +8,9 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:universal_html/html.dart' as html;
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:open_file/open_file.dart';
 
 class OrmawaRiwayatPage extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -34,6 +37,18 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
     _currentFilter = widget.statusFilter;
     _loadDocumentStats();
     _loadDocuments();
+  }
+
+  Future<void> _showDownloadToast(String fileName, String filePath) async {
+    Fluttertoast.showToast(
+      msg: 'File $fileName berhasil diunduh',
+      toastLength: Toast.LENGTH_LONG,
+      gravity: ToastGravity.BOTTOM,
+      timeInSecForIosWeb: 3,
+      backgroundColor: Colors.green,
+      textColor: Colors.white,
+      fontSize: 16.0,
+    );
   }
 
   Future<void> _loadDocumentStats() async {
@@ -522,24 +537,121 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
 
   Future<void> _downloadDocument(String documentId) async {
     try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
       final result = await _documentService.downloadDocument(documentId);
-      if (result['success']) {
-        // Implement file download here
-        print('Download document: ${result['filename']}');
+
+      if (result['success'] && result['data'] != null) {
+        final base64String = result['data'] as String;
+        final bytes = base64.decode(base64String);
+        final fileName = result['filename'] ?? 'document.pdf';
+
+        if (kIsWeb) {
+          // For web platform
+          final blob = html.Blob([bytes]);
+          final url = html.Url.createObjectUrlFromBlob(blob);
+          final anchor = html.AnchorElement(href: url)
+            ..setAttribute("download", fileName)
+            ..click();
+          html.Url.revokeObjectUrl(url);
+
+          if (mounted) {
+            Navigator.pop(context); // Close loading dialog
+            _showDownloadToast(fileName, '');
+          }
+        } else {
+          // For mobile platform
+          try {
+            // Get the public Downloads directory
+            final directory = Directory('/storage/emulated/0/Download');
+            if (!await directory.exists()) {
+              await directory.create(recursive: true);
+            }
+
+            final file = File('${directory.path}/$fileName');
+            await file.writeAsBytes(bytes);
+
+            if (mounted) {
+              Navigator.pop(context); // Close loading dialog
+
+              // Show toast with file location
+              Fluttertoast.showToast(
+                msg: 'File disimpan di: Download/$fileName',
+                toastLength: Toast.LENGTH_LONG,
+                gravity: ToastGravity.BOTTOM,
+                timeInSecForIosWeb: 5,
+                backgroundColor: Colors.green,
+                textColor: Colors.white,
+                fontSize: 16.0,
+              );
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content:
+                      Text('File berhasil disimpan di:\nDownload/$fileName'),
+                  backgroundColor: Colors.green,
+                  duration: const Duration(seconds: 5),
+                  action: SnackBarAction(
+                    label: 'Buka File',
+                    onPressed: () async {
+                      final result = await OpenFile.open(file.path);
+                      print('Open file result: $result');
+                    },
+                  ),
+                ),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              Navigator.pop(context); // Close loading dialog
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      'Gagal menyimpan file: $e\nCoba periksa izin penyimpanan'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+        }
       } else {
         if (mounted) {
+          Navigator.pop(context); // Close loading dialog
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content:
-                    Text(result['message'] ?? 'Failed to download document')),
+              content: Text(result['message'] ?? 'Gagal mengunduh dokumen'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
     } catch (e) {
+      print('Download error: $e');
       if (mounted) {
+        Navigator.pop(context); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
