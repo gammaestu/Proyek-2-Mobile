@@ -31,56 +31,41 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
   @override
   void initState() {
     super.initState();
-    _fetchDokumen();
+    _fetchDocuments(); // Panggil fungsi baru
   }
 
-  Future<void> _fetchDokumen() async {
-    setState(() {
-      _isLoading = true;
-    });
+  Future<void> _fetchDocuments() async {
+    setState(() => _isLoading = true);
 
     try {
-      final response = await http.get(
-        Uri.parse(
-          '${_documentService.getBaseUrl()}/dosen/${widget.userData?['id']}/documents',
-        ),
-      );
+      final result = await _documentService.getAllDocuments();
+      if (mounted) {
+        final allDocuments = List<Map<String, dynamic>>.from(result['data'] ?? []);
+        final filtered = _filterPendingDocuments(allDocuments);
 
-      print('Respons API: ${response.body}'); // Debugging respons API
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-
-        if (data['data'] != null) {
-          setState(() {
-            _documents = List<Map<String, dynamic>>.from(data['data']).map((doc) {
-              return {
-                ...doc,
-                'status': doc['status'] ?? doc['status_dokumen'], // Gunakan kunci yang benar
-              };
-            }).toList();
-          });
-          print('Dokumen setelah parsing: ${_documents.map((doc) => doc['status']).toList()}'); // Debugging status
-        } else {
-          print('Tidak ada data dokumen di dalam respons');
-        }
-      } else {
-        throw Exception('Gagal memuat data dokumen');
+        setState(() {
+          _documents = filtered;
+          _isLoading = false;
+        });
       }
     } catch (e) {
-      print('Error fetching documents: $e');
       if (mounted) {
+        setState(() {
+          _documents = [];
+          _isLoading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${e.toString()}')),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
+  }
+
+  List<Map<String, dynamic>> _filterPendingDocuments(List<Map<String, dynamic>> docs) {
+    return docs.where((doc) {
+      final status = doc['status']?.toString().toLowerCase();
+      return status == 'diajukan' || status == 'sudah_direvisi'; // Filter dokumen dengan status tertentu
+    }).toList();
   }
 
   List<Map<String, dynamic>> _filteredDocuments() {
@@ -102,33 +87,50 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Nomor Surat: ${document['nomor_surat'] ?? '-'}'),
-                Text('Hal: ${document['perihal'] ?? '-'}'),
+                Text('Hal: ${document['hal'] ?? '-'}'),
                 Text('Status: ${document['status'] ?? '-'}'), // Gunakan kunci status
                 Text('Pengaju: ${document['namaMahasiswa'] ?? '-'}'),
                 if (document['keterangan'] != null)
                   Text('Keterangan: ${document['keterangan']}'),
+                Text('Tanggal Pengajuan: ${document['created_at'] ?? '-'}'),
                 const SizedBox(height: 16),
                 Wrap(
                   spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
                   children: [
-                    ElevatedButton(
-                      onPressed: () => _viewDocument(document['id'].toString()),
-                      child: const Text('Lihat'),
+                    SizedBox(
+                      width: 100,
+                      child: ElevatedButton(
+                        onPressed: () => _viewDocument(document['id'].toString()),
+                        child: const Text('Lihat'),
+                      ),
                     ),
-                    ElevatedButton(
-                      onPressed: () => _markForRevision(document['id']),
-                      child: const Text('Revisi'),
+                    SizedBox(
+                      width: 100,
+                      child: ElevatedButton(
+                        onPressed: () => _markForRevision(document['id']),
+                        child: const Text('Revisi'),
+                      ),
                     ),
-                    ElevatedButton(
-                      onPressed: () => _downloadDocument(document['id']),
-                      child: const Text('Download'),
+                    SizedBox(
+                      width: 100,
+                      child: ElevatedButton(
+                        onPressed: () => _downloadDocument(document['id']),
+                        child: const Text('Download'),
+                      ),
                     ),
-                    ElevatedButton(
-                      onPressed: () => _addQrCode(document['id']),
-                      child: const Text('QR Code'),
+                    SizedBox(
+                      width: 100,
+                      child: ElevatedButton(
+                        onPressed: () => _addQrCode(document['id']),
+                        child: const Text('QR Code'),
+                      ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 16),
+                Text('Tanggal Disetujui: ${document['updated_at'] ?? '-'}'),
               ],
             ),
           ),
@@ -270,7 +272,7 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
 
                 if (result['success']) {
                   _showMessage('Dokumen berhasil ditandai untuk revisi');
-                  _fetchDokumen();
+                  _fetchDocuments();
                 } else {
                   _showMessage(result['message'] ?? 'Gagal menyimpan revisi');
                 }
@@ -304,7 +306,7 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
       final result = await _documentService.addQrCode(documentId, position);
       if (result['success']) {
         _showMessage('QR Code berhasil ditambahkan');
-        _fetchDokumen();
+        _fetchDocuments();
       } else {
         _showMessage(result['message'] ?? 'Gagal menambahkan QR Code');
       }
@@ -340,7 +342,7 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
       backgroundColor: Colors.white,
       appBar: _buildAppBar(),
       body: RefreshIndicator(
-        onRefresh: _fetchDokumen,
+        onRefresh: _fetchDocuments,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -378,35 +380,25 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
               else
                 Expanded(
                   child: ListView.builder(
-                    itemCount: _filteredDocuments().length,
+                    itemCount: _documents.length,
                     itemBuilder: (_, index) {
-                      final doc = _filteredDocuments()[index];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey[300]!),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text("Nomor: ${doc['nomor_surat'] ?? '-'}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  Text("Hal: ${doc['perihal'] ?? '-'}", style: TextStyle(color: Colors.grey[600])),
-                                  Text("Status: ${doc['status'] ?? '-'}", style: TextStyle(color: _getStatusColor(doc['status']), fontWeight: FontWeight.w500)),
-                                ],
-                              ),
-                            ),
-                            ElevatedButton(
-                              onPressed: () => _showDocumentDetail(context, doc),
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-                              child: const Text("Lihat Detail", style: TextStyle(color: Colors.white)),
-                            ),
-                          ],
+                      final doc = _documents[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        child: ListTile(
+                          title: Text('Nomor: ${doc['nomor_surat'] ?? '-'}'),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Hal: ${doc['hal'] ?? '-'}'),
+                              Text('Status: ${doc['status'] ?? '-'}', style: TextStyle(color: _getStatusColor(doc['status']))),
+                            ],
+                          ),
+                          trailing: ElevatedButton(
+                            onPressed: () => _showDocumentDetail(context, doc),
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+                            child: const Text("Lihat Detail", style: TextStyle(color: Colors.white)),
+                          ),
                         ),
                       );
                     },
