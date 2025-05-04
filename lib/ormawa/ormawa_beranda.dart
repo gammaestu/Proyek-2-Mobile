@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../component/navbar_ormawa.dart';
+import '../component/appbar_ormawa.dart';
 import '../services/document_service.dart';
 import '../services/auth_service.dart';
 import './ormawa_riwayat.dart';
@@ -203,20 +204,7 @@ class _OrmawaBerandaPageState extends State<OrmawaBerandaPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('SIGNIX'),
-        backgroundColor: Colors.blue,
-        actions: [
-          CircleAvatar(
-            backgroundColor: Colors.white,
-            child: Text(
-              _displayName.isNotEmpty ? _displayName[0].toUpperCase() : 'U',
-              style: const TextStyle(color: Colors.blue),
-            ),
-          ),
-          const SizedBox(width: 16),
-        ],
-      ),
+      appBar: AppBarOrmawa(userData: _userData),
       body: RefreshIndicator(
         onRefresh: () async {
           await Future.wait([

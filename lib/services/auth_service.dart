@@ -195,4 +195,50 @@ class AuthService {
       return {'success': false, 'message': 'Gagal logout: $e'};
     }
   }
+
+  Future<Map<String, dynamic>> updateProfile({
+    required String namaMahasiswa,
+    required String email,
+    required String noHp,
+  }) async {
+    final token = await getToken();
+    final baseUrl = getBaseUrl();
+    final response = await http.put(
+      Uri.parse('$baseUrl/ormawa/profile'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'namaMahasiswa': namaMahasiswa,
+        'email': email,
+        'noHp': noHp,
+      }),
+    );
+    return jsonDecode(response.body);
+  }
+
+  Future<Map<String, dynamic>> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    final token = await getToken();
+    final baseUrl = getBaseUrl();
+    final response = await http.put(
+      Uri.parse('$baseUrl/ormawa/profile/password'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'current_password': currentPassword,
+        'new_password': newPassword,
+        'new_password_confirmation': confirmPassword,
+      }),
+    );
+    return jsonDecode(response.body);
+  }
 }

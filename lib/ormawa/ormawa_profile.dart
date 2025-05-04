@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../component/navbar_ormawa.dart';
+import '../component/appbar_ormawa.dart';
 import '../services/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class OrmawaProfilePage extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -16,6 +19,14 @@ class _OrmawaProfilePageState extends State<OrmawaProfilePage> {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
 
+  // Controller untuk form
+  final _namaController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _noHpController = TextEditingController();
+  final _currentPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -24,23 +35,74 @@ class _OrmawaProfilePageState extends State<OrmawaProfilePage> {
 
   Future<void> _loadUserData() async {
     Map<String, dynamic>? userData;
-
-    // Coba ambil dari widget.userData dulu
     if (widget.userData != null) {
       userData = widget.userData;
-      print('Data dari widget: $userData');
     } else {
-      // Jika tidak ada, coba ambil dari penyimpanan
       userData = await _authService.getUser();
-      print('Data dari penyimpanan: $userData');
     }
-
     if (mounted && userData != null) {
       setState(() {
         _userData = userData;
         _isLoading = false;
+        _namaController.text = userData!['namaMahasiswa'] ?? '';
+        _emailController.text = userData!['email'] ?? '';
+        _noHpController.text = userData!['noHp'] ?? '';
       });
-      print('Data profil yang digunakan: $_userData');
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    setState(() => _isLoading = true);
+    final res = await _authService.updateProfile(
+      namaMahasiswa: _namaController.text,
+      email: _emailController.text,
+      noHp: _noHpController.text,
+    );
+    setState(() => _isLoading = false);
+    if (res['success'] == true) {
+      // Simpan data user terbaru ke SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user', jsonEncode(res['data']));
+      setState(() {
+        _userData = res['data']; // Update state agar AppBar langsung refresh
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Profil berhasil diupdate'),
+            backgroundColor: Colors.green),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(res['message'] ?? 'Gagal update profil'),
+            backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _savePassword() async {
+    setState(() => _isLoading = true);
+    final res = await _authService.updatePassword(
+      currentPassword: _currentPasswordController.text,
+      newPassword: _newPasswordController.text,
+      confirmPassword: _confirmPasswordController.text,
+    );
+    setState(() => _isLoading = false);
+    if (res['success'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Password berhasil diubah'),
+            backgroundColor: Colors.green),
+      );
+      _currentPasswordController.clear();
+      _newPasswordController.clear();
+      _confirmPasswordController.clear();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(res['message'] ?? 'Gagal update password'),
+            backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -73,10 +135,7 @@ class _OrmawaProfilePageState extends State<OrmawaProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profil'),
-        backgroundColor: Colors.blue,
-      ),
+      appBar: AppBarOrmawa(userData: _userData),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -90,8 +149,9 @@ class _OrmawaProfilePageState extends State<OrmawaProfilePage> {
                       radius: 50,
                       backgroundColor: Colors.blue,
                       child: Text(
-                        _displayName.isNotEmpty
-                            ? _displayName[0].toUpperCase()
+                        _userData?['namaMahasiswa'] != null &&
+                                _userData!['namaMahasiswa'].isNotEmpty
+                            ? _userData!['namaMahasiswa'][0].toUpperCase()
                             : 'U',
                         style: const TextStyle(
                           fontSize: 40,
@@ -101,33 +161,68 @@ class _OrmawaProfilePageState extends State<OrmawaProfilePage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Text(
-                      _displayName,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+                    TextField(
+                      controller: _namaController,
+                      decoration: const InputDecoration(labelText: 'Nama'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _emailController,
+                      decoration: const InputDecoration(labelText: 'Email'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _noHpController,
+                      decoration:
+                          const InputDecoration(labelText: 'No. Telepon'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      enabled: false,
+                      decoration: InputDecoration(
+                        labelText: 'NIM',
+                        hintText: _userData?['nim'] ?? '-',
                       ),
                     ),
-                    const SizedBox(height: 32),
-                    _buildProfileItem(
-                      icon: Icons.person_outline,
-                      title: 'NIM',
-                      value: _userData?['nim']?.toString() ?? '-',
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _saveProfile,
+                        child: const Text('Simpan Perubahan'),
+                      ),
                     ),
-                    _buildProfileItem(
-                      icon: Icons.email_outlined,
-                      title: 'Email',
-                      value: _userData?['email']?.toString() ?? '-',
+                    const Divider(height: 40),
+                    const Text('Update Password',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _currentPasswordController,
+                      decoration:
+                          const InputDecoration(labelText: 'Password Lama'),
+                      obscureText: true,
                     ),
-                    _buildProfileItem(
-                      icon: Icons.phone_outlined,
-                      title: 'No. Telepon',
-                      value: _userData?['noHp']?.toString() ?? '-',
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _newPasswordController,
+                      decoration:
+                          const InputDecoration(labelText: 'Password Baru'),
+                      obscureText: true,
                     ),
-                    _buildProfileItem(
-                      icon: Icons.groups_outlined,
-                      title: 'Organisasi',
-                      value: _userData?['namaOrmawa']?.toString() ?? '-',
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _confirmPasswordController,
+                      decoration: const InputDecoration(
+                          labelText: 'Konfirmasi Password Baru'),
+                      obscureText: true,
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _savePassword,
+                        child: const Text('Update Password'),
+                      ),
                     ),
                     const SizedBox(height: 32),
                     SizedBox(
@@ -161,46 +256,14 @@ class _OrmawaProfilePageState extends State<OrmawaProfilePage> {
     );
   }
 
-  Widget _buildProfileItem({
-    required IconData icon,
-    required String title,
-    required String value,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.blue),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  @override
+  void dispose() {
+    _namaController.dispose();
+    _emailController.dispose();
+    _noHpController.dispose();
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 }

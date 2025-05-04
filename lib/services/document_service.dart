@@ -652,4 +652,58 @@ class DocumentService {
       };
     }
   }
+
+  // Method untuk upload revisi dokumen
+  Future<Map<String, dynamic>> uploadRevisiDocument({
+    required String documentId,
+    required List<int> fileBytes,
+    required String fileName,
+  }) async {
+    try {
+      final token = await _authService.getToken();
+      if (token == null) {
+        return {
+          'success': false,
+          'message': 'Token tidak ditemukan',
+        };
+      }
+
+      final baseUrl = AuthService.getBaseUrl();
+      var uri =
+          Uri.parse('$baseUrl/ormawa/documents/' + documentId + '/revisi');
+      var request = http.MultipartRequest('POST', uri);
+      request.headers.addAll({
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      });
+      var multipartFile = http.MultipartFile.fromBytes(
+        'dokumen',
+        fileBytes,
+        filename: fileName,
+      );
+      request.files.add(multipartFile);
+
+      var response = await request.send();
+      var responseBody = await response.stream.bytesToString();
+      var data = jsonDecode(responseBody);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Berhasil update dokumen revisi',
+          'data': data['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Gagal update dokumen revisi',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Terjadi kesalahan: ${e.toString()}',
+      };
+    }
+  }
 }

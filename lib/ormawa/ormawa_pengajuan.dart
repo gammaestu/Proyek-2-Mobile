@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../component/navbar_ormawa.dart';
+import '../component/appbar_ormawa.dart';
 import '../services/document_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
@@ -237,10 +238,7 @@ class _OrmawaPengajuanPageState extends State<OrmawaPengajuanPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pengajuan Surat'),
-        backgroundColor: Colors.blue,
-      ),
+      appBar: AppBarOrmawa(userData: widget.userData),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
