@@ -12,8 +12,11 @@ class AuthService {
 
   // Base URL untuk API - bisa diubah sesuai kebutuhan
   static const String _defaultBaseUrl =
-      'http://192.168.177.8:8000'; // IP laptop di jaringan hotspot
+      'http://10.0.143.5:8000'; // Sesuaikan dengan IP laptop Anda
   static String? _customBaseUrl; // Untuk menyimpan URL kustom
+
+  // Tambahkan timeout yang lebih lama
+  static const Duration _timeout = Duration(seconds: 30);
 
   // Setter untuk mengubah base URL
   static void setCustomBaseUrl(String url) {
@@ -35,10 +38,11 @@ class AuthService {
       if (Platform.environment.containsKey('ANDROID_EMU_REDIRECT_TO_HOST')) {
         return 'http://10.0.2.2:8000/api';
       }
+      // Untuk device fisik, gunakan IP network
+      return '$_defaultBaseUrl/api';
     }
 
-    // Untuk device fisik, gunakan IP default
-    return '$_defaultBaseUrl/api';
+    return 'http://localhost:8000/api';
   }
 
   // Fungsi login untuk berbagai role
@@ -49,6 +53,15 @@ class AuthService {
     String? nip,
   }) async {
     try {
+      // Tambahkan pengecekan koneksi
+      final result = await InternetAddress.lookup('google.com');
+      if (result.isEmpty || result[0].rawAddress.isEmpty) {
+        return {
+          'success': false,
+          'message': 'Tidak ada koneksi internet',
+        };
+      }
+
       final baseUrl = getBaseUrl();
       String endpoint = '';
       Map<String, dynamic> body = {};
@@ -86,10 +99,11 @@ class AuthService {
         body: jsonEncode(body),
       )
           .timeout(
-        const Duration(seconds: 15),
+        _timeout,
         onTimeout: () {
           print('Connection timeout'); // Debug print
-          throw TimeoutException('Koneksi timeout. Periksa koneksi Anda.');
+          throw TimeoutException(
+              'Koneksi timeout. Periksa koneksi Anda dan pastikan server berjalan.');
         },
       );
 
@@ -150,9 +164,19 @@ class AuthService {
       }
     } catch (e) {
       print('Login error: $e'); // Debug print
+      String message = 'Terjadi kesalahan koneksi';
+
+      if (e is TimeoutException) {
+        message =
+            'Koneksi timeout. Periksa koneksi Anda dan pastikan server berjalan.';
+      } else if (e is SocketException) {
+        message =
+            'Tidak dapat terhubung ke server. Pastikan server berjalan dan IP address benar.';
+      }
+
       return {
         'success': false,
-        'message': 'Terjadi kesalahan koneksi: ${e.toString()}',
+        'message': message,
       };
     }
   }
