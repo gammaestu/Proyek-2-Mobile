@@ -12,6 +12,7 @@ import 'dosen/dosen_beranda.dart';
 import 'dosen/pengesahan_dosen.dart';
 import 'dosen/riwayat_dosen.dart';
 import 'dosen/dosen_profile.dart';
+import 'dosen/pdf_viewer_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -81,6 +82,7 @@ class MyApp extends StatelessWidget {
         '/dosen/pengesahan': (context) => const DosenPengesahanPage(),
         '/dosen/riwayat': (context) => const DosenRiwayatPage(),
         '/dosen/profil': (context) => const DosenProfilePage(),
+        '/dosen/pdf': (context) => PDFViewerPage(url: ''),
       },
     );
   }

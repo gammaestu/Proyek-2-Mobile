@@ -49,21 +49,29 @@ class _DosenBerandaPageState extends State<DosenBerandaPage> {
 
   Future<void> _loadDocumentStats() async {
     try {
-      final result = await _documentService.getDocumentStatsForDosen(); // pastikan fungsi ini ada
+      print('Mulai mengambil statistik dokumen'); // Debug print
+      setState(() => _isLoading = true);
+      
+      final result = await _documentService.getDocumentStatsForDosen();
+      print('Hasil statistik: $result'); // Debug print
+      
       if (mounted) {
-        setState(() {
-          _documentStats = result['data'];
-          _isLoading = false;
-        });
-        print('Document Stats Dosen: $_documentStats');
+        if (result['success'] == true) {
+          setState(() {
+            _documentStats = result['data'];
+            _isLoading = false;
+          });
+          print('Stats berhasil diupdate: $_documentStats');
+        } else {
+          throw Exception(result['message'] ?? 'Gagal mengambil statistik');
+        }
       }
     } catch (e) {
+      print('Error: $e'); // Debug print
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          SnackBar(content: Text('Gagal memuat statistik: ${e.toString()}')),
         );
       }
     }

@@ -117,27 +117,41 @@ class DocumentService {
 
   Future<Map<String, dynamic>> getDocumentStatsForDosen() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString(AuthService.tokenKey);
+      final token = await _authService.getToken();
+      print('Token untuk stats dosen: $token'); // Debug print
+
+      final baseUrl = getBaseUrl();
+      print('URL untuk stats dosen: $baseUrl/dosen/document-stats'); // Debug print
 
       final response = await http.get(
-        Uri.parse('${getBaseUrl()}/dosen/document-stats'),
+        Uri.parse('$baseUrl/dosen/document-stats'),
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
           'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
         },
       );
 
+      print('Response status: ${response.statusCode}'); // Debug print
+      print('Response body: ${response.body}'); // Debug print
+
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': {
+            'diajukan': data['data']['diajukan'] ?? 0,
+            'disahkan': data['data']['disahkan'] ?? 0,
+            'butuh revisi': data['data']['butuh revisi'] ?? 0,
+            'sudahDirevisi': data['data']['sudahDirevisi'] ?? 0,
+          }
+        };
       } else {
-        print('Gagal ambil data dokumen: ${response.body}');
-        return {'data': {}};
+        print('Error: ${response.statusCode} - ${response.body}');
+        return {'success': false, 'data': {}};
       }
     } catch (e) {
-      print('Error ambil dokumen dosen: $e');
-      return {'data': {}};
+      print('Error dalam getDocumentStatsForDosen: $e');
+      return {'success': false, 'data': {}};
     }
   }
 
@@ -145,8 +159,15 @@ class DocumentService {
     if (kIsWeb) {
       return 'http://localhost:8000/api';
     }
-    // Untuk HP Android
-    return 'http://192.168.13.8:8000/api';
+    if (Platform.isAndroid) {
+      // Untuk emulator Android
+      if (Platform.environment.containsKey('ANDROID_EMU_REDIRECT_TO_HOST')) {
+        return 'http://10.0.2.2:8000/api';
+      }
+      // Untuk device fisik, gunakan IP komputer Anda
+      return 'http://192.168.56.1:8000/api'; // Ganti dengan IP komputer Anda
+    }
+    return 'http://localhost:8000/api';
   }
 
   Future<Map<String, dynamic>> submitDocument({
@@ -706,4 +727,16 @@ class DocumentService {
       };
     }
   }
+  
+  Future<String?> getDocumentFileUrl(String documentId) async {
+  final baseUrl = getBaseUrl(); // misalnya https://yourdomain.com/api
+  try {
+    final url = '$baseUrl/documents/$documentId/file';
+    return url;
+  } catch (e) {
+    print('Error generating file URL: $e');
+    return null;
+  }
+}
+
 }

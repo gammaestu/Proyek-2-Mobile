@@ -1,0 +1,2 @@
+D:/Semester 4/proyek/signix_aplication/Proyek-2-Mobile/android/app/.cxx/RelWithDebInfo/5ghw3e5f/x86_64/CMakeFiles/edit_cache.dir
+D:/Semester 4/proyek/signix_aplication/Proyek-2-Mobile/android/app/.cxx/RelWithDebInfo/5ghw3e5f/x86_64/CMakeFiles/rebuild_cache.dir
