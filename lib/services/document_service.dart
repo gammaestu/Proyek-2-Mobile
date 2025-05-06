@@ -516,32 +516,85 @@ class DocumentService {
     }
   }
 
-  // Method untuk menambah QR code
+  // Method untuk menambah QR code dan mengubah status jadi disahkan
   Future<Map<String, dynamic>> addQrCode(
       String documentId, Map<String, dynamic> position) async {
     try {
       final token = await _authService.getToken();
-      final response = await http.post(
-        Uri.parse('${getBaseUrl()}/documents/$documentId/qr-code'),
+      if (token == null) {
+        print('Token not found in addQrCode');
+        return {
+          'success': false,
+          'message': 'Token tidak ditemukan',
+        };
+      }
+
+      print(
+          'Adding QR code for document ID: $documentId (${documentId.runtimeType})');
+
+      // Convert any double values to integers for API consistency
+      final processedPosition = position.map((key, value) {
+        if (value is double) {
+          return MapEntry(key, value.toInt());
+        }
+        return MapEntry(key, value);
+      });
+
+      print('Adding QR code at position: $processedPosition');
+
+      // Ensure the position contains a size parameter
+      if (!processedPosition.containsKey('size')) {
+        processedPosition['size'] = 80; // Default size if not provided
+      }
+
+      // Ensure documentId is properly formatted for the API call
+      final String docIdString = documentId.toString().trim();
+      final apiUrl = '${getBaseUrl()}/dosen/documents/$docIdString/qr-code';
+      print('API URL for QR code: $apiUrl');
+
+      final bodyData = json.encode({
+        'position': processedPosition,
+        'update_status':
+            true, // Request the server to update status to 'disahkan'
+      });
+
+      print('Request body: $bodyData');
+
+      final response = await http
+          .post(
+        Uri.parse(apiUrl),
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        body: json.encode({
-          'position': position,
-        }),
+        body: bodyData,
+      )
+          .timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          print('Connection timeout in addQrCode');
+          throw TimeoutException('Koneksi timeout. Periksa koneksi Anda.');
+        },
       );
 
+      print('QR code response status: ${response.statusCode}');
+      print('QR code response body: ${response.body}');
+
       if (response.statusCode == 200) {
-        return json.decode(response.body);
+        var responseData = json.decode(response.body);
+        return responseData;
       } else {
         return {
           'success': false,
-          'message': 'Gagal menambahkan QR code',
+          'message':
+              'Gagal menambahkan QR code: ${response.statusCode}, ${response.reasonPhrase}',
+          'error_details': response.body,
         };
       }
     } catch (e) {
+      print('Error in addQrCode: $e');
+      print('Stack trace: ${StackTrace.current}');
       return {
         'success': false,
         'message': 'Error: ${e.toString()}',
@@ -553,23 +606,27 @@ class DocumentService {
   Future<Map<String, dynamic>> verifyDocument(String documentId) async {
     try {
       final token = await _authService.getToken();
-      final response = await http.post(
-        Uri.parse('${getBaseUrl()}/documents/$documentId/verify'),
+      final response = await http.get(
+        Uri.parse('${getBaseUrl()}/dosen/documents/$documentId/verify'),
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
         },
       );
 
+      print('Verify document response status: ${response.statusCode}');
+      print('Verify document response body: ${response.body}');
+
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
         return {
           'success': false,
-          'message': 'Gagal memverifikasi dokumen',
+          'message': 'Gagal memverifikasi dokumen: ${response.statusCode}',
         };
       }
     } catch (e) {
+      print('Error in verifyDocument: $e');
       return {
         'success': false,
         'message': 'Error: ${e.toString()}',
@@ -579,74 +636,93 @@ class DocumentService {
 
   Future<Map<String, dynamic>> getDocumentFile(String documentId) async {
     try {
+      print('Getting document file for ID: $documentId');
       final token = await _authService.getToken();
       if (token == null) {
+        print('Token not found');
         return {
           'success': false,
           'message': 'Token tidak ditemukan',
         };
       }
 
-      final response = await _dio.get(
-        '/ormawa/documents/$documentId/file',
-        options: Options(
-          responseType: ResponseType.json,
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Accept': 'application/json',
-          },
-        ),
+      // Construct the URL directly for better control
+      final apiUrl = '${getBaseUrl()}/ormawa/documents/$documentId/file';
+      print('API URL: $apiUrl');
+
+      // Use http directly for better error handling
+      final response = await http.get(
+        Uri.parse(apiUrl),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          print('Connection timeout');
+          throw TimeoutException('Koneksi timeout. Periksa koneksi Anda.');
+        },
       );
 
+      print('Document file response status: ${response.statusCode}');
+      // Print only the first 100 characters of the response to avoid flooding logs
+      print(
+          'Document file response preview: ${response.body.length > 100 ? response.body.substring(0, 100) + '...' : response.body}');
+
       if (response.statusCode == 200) {
-        final data = response.data;
+        final data = json.decode(response.body);
         if (data['success'] == true && data['data'] != null) {
           // Verify the base64 string is valid
           final base64String = data['data'] as String;
           if (base64String.isEmpty) {
+            print('Empty PDF data');
             return {
               'success': false,
               'message': 'Data PDF kosong',
             };
           }
 
-          // Verify the content type is PDF
-          final contentType = data['content_type'] as String?;
-          if (contentType != null &&
-              !contentType.toLowerCase().contains('pdf')) {
-            return {
-              'success': false,
-              'message': 'File bukan PDF yang valid',
-            };
-          }
-
+          print(
+              'Successfully retrieved document file (${base64String.length} chars)');
           return {
             'success': true,
             'data': base64String,
+            'content_type': data['content_type'] ?? 'application/pdf',
           };
         } else {
+          print('API returned success: false - ${data['message']}');
           return {
             'success': false,
             'message': data['message'] ?? 'Gagal mengambil file dokumen',
           };
         }
       } else {
+        print('Error response: ${response.reasonPhrase}');
         return {
           'success': false,
-          'message': 'Gagal mengambil file dokumen: ${response.statusCode}',
+          'message':
+              'Gagal mengambil file dokumen: ${response.statusCode} - ${response.reasonPhrase}',
         };
       }
     } catch (e) {
       print('Error in getDocumentFile: $e');
-      if (e is DioException) {
-        print('DioError details: ${e.response?.data}');
-        print('DioError message: ${e.message}');
-        print('DioError type: ${e.type}');
-      }
+      print('Stack trace: ${StackTrace.current}');
       return {
         'success': false,
-        'message': e.toString(),
+        'message': 'Error: ${e.toString()}',
       };
+    }
+  }
+
+  Future<String?> getDocumentFileUrl(String documentId) async {
+    final baseUrl = getBaseUrl(); // misalnya https://yourdomain.com/api
+    try {
+      final url = '$baseUrl/documents/$documentId/file';
+      return url;
+    } catch (e) {
+      print('Error generating file URL: $e');
+      return null;
     }
   }
 
