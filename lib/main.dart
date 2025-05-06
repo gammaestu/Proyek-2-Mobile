@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'login_page.dart';
 import 'ormawa/ormawa_login.dart';
 import 'ormawa/ormawa_beranda.dart';
@@ -12,9 +13,22 @@ import 'dosen/dosen_beranda.dart';
 import 'dosen/pengesahan_dosen.dart';
 import 'dosen/riwayat_dosen.dart';
 import 'dosen/dosen_profile.dart';
+import 'services/auth_service.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load API configuration from SharedPreferences
+  final prefs = await SharedPreferences.getInstance();
+  final savedIp = prefs.getString('api_ip');
+  final savedPort = prefs.getString('api_port');
+
+  // If saved values exist, update ApiConfig
+  if (savedIp != null && savedPort != null) {
+    ApiConfig.updateConfig(ip: savedIp, portNum: savedPort);
+    print('Loaded API config: ${ApiConfig.baseUrl}');
+  }
+
   runApp(const MyApp());
 }
 

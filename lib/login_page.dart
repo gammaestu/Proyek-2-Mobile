@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'ormawa/ormawa_login.dart';
 import './dosen/dosen_login.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'services/auth_service.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
@@ -9,6 +11,16 @@ class LoginPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.grey),
+            onPressed: () => _showServerConfigDialog(context),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           const SizedBox(height: 150), // Menambah jarak atas agar logo turun
@@ -136,6 +148,115 @@ class LoginPage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  // Add this method to show the server configuration dialog
+  void _showServerConfigDialog(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    String currentIp = ApiConfig.baseIp;
+    String currentPort = ApiConfig.port;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Konfigurasi Server'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Masalah Koneksi Timeout?',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Pastikan:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const Text(
+                    '• HP dan laptop terhubung ke jaringan WiFi yang sama',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  const Text(
+                    '• Server Laravel berjalan di laptop Anda',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  const Text(
+                    '• Firewall tidak memblokir koneksi',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Masukkan alamat IP server:',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    initialValue: currentIp,
+                    decoration: const InputDecoration(
+                      labelText: 'IP Address',
+                      hintText: 'contoh: 192.168.1.5',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) {
+                      currentIp = value;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    initialValue: currentPort,
+                    decoration: const InputDecoration(
+                      labelText: 'Port',
+                      hintText: 'contoh: 8000',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) {
+                      currentPort = value;
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  if (currentIp.isNotEmpty && currentPort.isNotEmpty) {
+                    // Update ApiConfig
+                    ApiConfig.updateConfig(ip: currentIp, portNum: currentPort);
+
+                    // Reset custom URL jika ada
+                    AuthService.resetCustomUrl();
+
+                    // Simpan ke SharedPreferences untuk persistensi
+                    await prefs.setString('api_ip', currentIp);
+                    await prefs.setString('api_port', currentPort);
+
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content:
+                              Text('Server diubah ke ${ApiConfig.baseUrl}'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                      Navigator.pop(context);
+                    }
+                  }
+                },
+                child: const Text('Simpan'),
+              ),
+            ],
+          );
+        });
+      },
     );
   }
 }

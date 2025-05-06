@@ -142,11 +142,8 @@ class DocumentService {
   }
 
   String getBaseUrl() {
-    if (kIsWeb) {
-      return 'http://localhost:8000/api';
-    }
-    // Untuk HP Android
-    return 'http://192.168.13.8:8000/api';
+    // Menggunakan ApiConfig untuk mendapatkan URL yang konsisten
+    return AuthService.getBaseUrl();
   }
 
   Future<Map<String, dynamic>> submitDocument({

@@ -5,40 +5,68 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 
+class ApiConfig {
+  // Pusat konfigurasi API yang dapat diakses dari mana saja
+  static String baseIp = "192.168.1.6"; // Ganti dengan IP server Anda
+  static String port = "8000"; // Port default Laravel
+
+  // URL lengkap dengan port
+  static String get baseUrl => "http://$baseIp:$port";
+
+  // URL dengan endpoint API
+  static String get apiUrl => "$baseUrl/api";
+
+  // Mengubah IP dan port
+  static void updateConfig({String? ip, String? portNum}) {
+    if (ip != null) baseIp = ip;
+    if (portNum != null) port = portNum;
+    print("API URL diperbarui: $apiUrl");
+  }
+}
+
 class AuthService {
   // Konstanta key untuk SharedPreferences
   static const String tokenKey = 'token';
   static const String userKey = 'user';
 
-  // Base URL untuk API - bisa diubah sesuai kebutuhan
-  static const String _defaultBaseUrl =
-      'http://192.168.177.8:8000'; // IP laptop di jaringan hotspot
+  // URL kustom untuk override konfigurasi default
   static String? _customBaseUrl; // Untuk menyimpan URL kustom
 
   // Setter untuk mengubah base URL
   static void setCustomBaseUrl(String url) {
     _customBaseUrl = url;
+    print('Custom Base URL diatur ke: $_customBaseUrl');
+  }
+
+  // Reset custom URL dan gunakan konfigurasi default
+  static void resetCustomUrl() {
+    _customBaseUrl = null;
+    print('Reset ke URL default: ${ApiConfig.apiUrl}');
   }
 
   // Mendapatkan Base URL sesuai platform
   static String getBaseUrl() {
     if (_customBaseUrl != null) {
-      return '$_customBaseUrl/api';
+      // Pastikan URL berakhir dengan /api
+      if (!_customBaseUrl!.endsWith('/api')) {
+        return '$_customBaseUrl/api';
+      }
+      return _customBaseUrl!;
     }
 
     if (kIsWeb) {
-      return 'http://localhost:8000/api';
+      return 'http://localhost:${ApiConfig.port}/api';
     }
 
     if (Platform.isAndroid) {
       // Untuk emulator Android
       if (Platform.environment.containsKey('ANDROID_EMU_REDIRECT_TO_HOST')) {
-        return 'http://10.0.2.2:8000/api';
+        return 'http://10.0.2.2:${ApiConfig.port}/api';
       }
     }
 
-    // Untuk device fisik, gunakan IP default
-    return '$_defaultBaseUrl/api';
+    // Untuk device fisik, gunakan URL dari ApiConfig
+    return ApiConfig.apiUrl;
   }
 
   // Fungsi login untuk berbagai role
@@ -54,6 +82,7 @@ class AuthService {
       Map<String, dynamic> body = {};
 
       print('Login attempt - Role: $role'); // Debug print
+      print('Menggunakan base URL: $baseUrl'); // Debug print untuk URL
 
       // Tentukan endpoint & request body berdasarkan role
       switch (role) {

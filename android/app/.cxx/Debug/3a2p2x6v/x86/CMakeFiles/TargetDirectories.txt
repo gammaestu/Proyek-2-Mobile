@@ -1,0 +1,2 @@
+D:/SEMESTER 4/PROYEK 2/Proyek-2-Mobile/android/app/.cxx/Debug/3a2p2x6v/x86/CMakeFiles/edit_cache.dir
+D:/SEMESTER 4/PROYEK 2/Proyek-2-Mobile/android/app/.cxx/Debug/3a2p2x6v/x86/CMakeFiles/rebuild_cache.dir
