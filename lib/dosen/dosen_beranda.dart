@@ -144,15 +144,15 @@ class _DosenBerandaPageState extends State<DosenBerandaPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       _statusCard(Icons.description, "Diajukan Ormawa", _documentStats?['diajukan'] ?? 0, Colors.amber),
-                      _statusCard(Icons.verified, "Tertanda", _documentStats?['tertanda'] ?? 0, Colors.green),
+                      _statusCard(Icons.verified, "Disahkan", _documentStats?['disahkan'] ?? 0, Colors.green),
                     ],
                   ),
                   const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _statusCard(Icons.warning, "Perlu Direvisi", _documentStats?['direvisi'] ?? 0, Colors.red),
-                      _statusCard(Icons.edit, "Sudah Direvisi", _documentStats?['sudahDirevisi'] ?? 0, Colors.blue),
+                      _statusCard(Icons.warning, "Perlu Direvisi", _documentStats?['butuh revisi'] ?? 0, Colors.red),
+                      _statusCard(Icons.edit, "Sudah Direvisi", _documentStats?['sudah direvisi'] ?? 0, Colors.blue),
                     ],
                   ),
                 ],

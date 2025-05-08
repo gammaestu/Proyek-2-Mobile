@@ -1,44 +1,58 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_pdfview/flutter_pdfview.dart';
-import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class PDFViewerPage extends StatefulWidget {
   final String url;
 
-  PDFViewerPage({required this.url});
+  const PDFViewerPage({Key? key, required this.url}) : super(key: key);
 
   @override
-  _PDFViewerPageState createState() => _PDFViewerPageState();
+  State<PDFViewerPage> createState() => _PDFViewerPageState();
 }
 
 class _PDFViewerPageState extends State<PDFViewerPage> {
   String? localPath;
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    downloadAndSavePDF();
+    loadDocument();
   }
 
-  Future<void> downloadAndSavePDF() async {
-   try {
-      final response = await http.get(Uri.parse(widget.url));
-      if (response.statusCode == 200) {
-        final dir = await getTemporaryDirectory();
-        final file = File('${dir.path}/document.pdf');
-        await file.writeAsBytes(response.bodyBytes);
+  Future<void> loadDocument() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      if (kIsWeb) {
         setState(() {
-          localPath = file.path;
+          localPath = widget.url;
+          isLoading = false;
         });
       } else {
-        throw Exception('Failed to download PDF');
+        // Handle mobile platforms
+        final file = File(widget.url);
+        if (await file.exists()) {
+          setState(() {
+            localPath = file.path;
+            isLoading = false;
+          });
+        } else {
+          throw Exception('File tidak ditemukan');
+        }
       }
     } catch (e) {
-      print('Error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
       setState(() {
-        localPath = null;
+        isLoading = false;
       });
     }
   }
@@ -46,10 +60,25 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Preview PDF")),
-      body: localPath != null
-          ? PDFView(filePath: localPath!)
-          : Center(child: CircularProgressIndicator()),
+      appBar: AppBar(
+        title: const Text('PDF Viewer'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : localPath != null
+              ? SfPdfViewer.file(
+                  File(localPath!),
+                  onDocumentLoadFailed: (details) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: ${details.description}')),
+                    );
+                  },
+                )
+              : const Center(child: Text('Tidak dapat memuat PDF')),
     );
   }
 }

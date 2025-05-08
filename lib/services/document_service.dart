@@ -142,7 +142,7 @@ class DocumentService {
             'diajukan': data['data']['diajukan'] ?? 0,
             'disahkan': data['data']['disahkan'] ?? 0,
             'butuh revisi': data['data']['butuh revisi'] ?? 0,
-            'sudahDirevisi': data['data']['sudahDirevisi'] ?? 0,
+            'sudah direvisi': data['data']['sudah direvisi'] ?? 0,
           }
         };
       } else {
@@ -155,7 +155,7 @@ class DocumentService {
     }
   }
 
-  String getBaseUrl() {
+  static String getBaseUrl() {
     if (kIsWeb) {
       return 'http://localhost:8000/api';
     }
@@ -165,7 +165,7 @@ class DocumentService {
         return 'http://10.0.2.2:8000/api';
       }
       // Untuk device fisik, gunakan IP komputer Anda
-      return 'http://192.168.56.1:8000/api'; // Ganti dengan IP komputer Anda
+      return 'http://192.168.1.2:8000/api'; // Ganti dengan IP komputer Anda
     }
     return 'http://localhost:8000/api';
   }
@@ -492,6 +492,38 @@ class DocumentService {
         };
       }
 
+      print('Downloading document with ID: $documentId');
+      print('Using base URL: ${_dio.options.baseUrl}');
+      
+      // Use a different endpoint based on the user role
+      // Try /dosen/documents/{id}/file first, if it fails, try /ormawa/documents/{id}/file
+      try {
+        print('Trying dosen endpoint first...');
+        final response = await _dio.get(
+          '/dosen/documents/$documentId/file',
+          options: Options(
+            responseType: ResponseType.json,
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Accept': 'application/json',
+            },
+          ),
+        );
+        
+        print('Dosen endpoint response: ${response.statusCode}');
+        
+        if (response.statusCode == 200 && response.data['success'] == true) {
+          return {
+            'success': true,
+            'data': response.data['data'],
+            'filename': response.data['filename'] ?? 'document.pdf',
+          };
+        }
+      } catch (e) {
+        print('Error using dosen endpoint: $e, trying ormawa endpoint...');
+      }
+      
+      // Try ormawa endpoint as fallback
       final response = await _dio.get(
         '/ormawa/documents/$documentId/file',
         options: Options(
@@ -503,9 +535,8 @@ class DocumentService {
         ),
       );
 
-      print('Download response status: ${response.statusCode}');
-      print('Download response data: ${response.data}');
-
+      print('Ormawa endpoint response status: ${response.statusCode}');
+      
       if (response.statusCode == 200) {
         final data = response.data;
         if (data['success'] == true && data['data'] != null) {
@@ -541,31 +572,49 @@ class DocumentService {
   }
 
   // Method untuk menambah QR code
-  Future<Map<String, dynamic>> addQrCode(
-      String documentId, Map<String, dynamic> position) async {
+  Future<Map<String, dynamic>> addQrCode(String documentId, Map<String, dynamic> position) async {
     try {
       final token = await _authService.getToken();
-      final response = await http.post(
-        Uri.parse('${getBaseUrl()}/documents/$documentId/qr-code'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'position': position,
-        }),
+      print('Adding QR Code for document: $documentId');
+      print('Position data: $position');
+      
+      if (token == null) {
+        return {
+          'success': false,
+          'message': 'Token tidak ditemukan',
+        };
+      }
+
+      final response = await _dio.post(
+        '/dosen/documents/$documentId/qr-code',
+        data: position,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          validateStatus: (status) => status! < 500, // Allow 4xx errors to be handled
+        ),
       );
 
+      print('Response status: ${response.statusCode}');
+      print('Response data: ${response.data}');
+
       if (response.statusCode == 200) {
-        return json.decode(response.body);
+        return {
+          'success': true,
+          'message': 'QR Code berhasil ditambahkan',
+          'data': response.data['data'],
+        };
       } else {
         return {
           'success': false,
-          'message': 'Gagal menambahkan QR code',
+          'message': response.data['message'] ?? 'Gagal menambahkan QR Code',
         };
       }
     } catch (e) {
+      print('Error adding QR Code: $e');
       return {
         'success': false,
         'message': 'Error: ${e.toString()}',
@@ -573,7 +622,62 @@ class DocumentService {
     }
   }
 
-  // Method untuk verifikasi dokumen
+  Future<Map<String, dynamic>> getDocumentFile(String documentId) async {
+    try {
+      final token = await _authService.getToken();
+      print('Getting document file for ID: $documentId');
+      
+      if (token == null) {
+        return {
+          'success': false,
+          'message': 'Token tidak ditemukan',
+        };
+      }
+
+      final response = await _dio.get(
+        '/dosen/documents/$documentId/file',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+          validateStatus: (status) {
+            return status! < 500; // Allow all status codes below 500
+          },
+        ),
+      );
+
+      print('Response status: ${response.statusCode}');
+      print('Response data type: ${response.data.runtimeType}');
+
+      if (response.statusCode == 200) {
+        if (response.data['success'] == true && response.data['data'] != null) {
+          return {
+            'success': true,
+            'data': response.data['data'],
+            'message': 'File berhasil diambil'
+          };
+        } else {
+          return {
+            'success': false,
+            'message': response.data['message'] ?? 'Data tidak valid'
+          };
+        }
+      } else {
+        return {
+          'success': false,
+          'message': 'Gagal mengambil file: ${response.statusCode}'
+        };
+      }
+    } catch (e) {
+      print('Error getting document file: $e');
+      return {
+        'success': false,
+        'message': 'Error: ${e.toString()}'
+      };
+    }
+  }
+
   Future<Map<String, dynamic>> verifyDocument(String documentId) async {
     try {
       final token = await _authService.getToken();
@@ -601,78 +705,16 @@ class DocumentService {
     }
   }
 
-  Future<Map<String, dynamic>> getDocumentFile(String documentId) async {
-    try {
-      final token = await _authService.getToken();
-      if (token == null) {
-        return {
-          'success': false,
-          'message': 'Token tidak ditemukan',
-        };
-      }
-
-      final response = await _dio.get(
-        '/ormawa/documents/$documentId/file',
-        options: Options(
-          responseType: ResponseType.json,
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Accept': 'application/json',
-          },
-        ),
-      );
-
-      if (response.statusCode == 200) {
-        final data = response.data;
-        if (data['success'] == true && data['data'] != null) {
-          // Verify the base64 string is valid
-          final base64String = data['data'] as String;
-          if (base64String.isEmpty) {
-            return {
-              'success': false,
-              'message': 'Data PDF kosong',
-            };
-          }
-
-          // Verify the content type is PDF
-          final contentType = data['content_type'] as String?;
-          if (contentType != null &&
-              !contentType.toLowerCase().contains('pdf')) {
-            return {
-              'success': false,
-              'message': 'File bukan PDF yang valid',
-            };
-          }
-
-          return {
-            'success': true,
-            'data': base64String,
-          };
-        } else {
-          return {
-            'success': false,
-            'message': data['message'] ?? 'Gagal mengambil file dokumen',
-          };
-        }
-      } else {
-        return {
-          'success': false,
-          'message': 'Gagal mengambil file dokumen: ${response.statusCode}',
-        };
-      }
-    } catch (e) {
-      print('Error in getDocumentFile: $e');
-      if (e is DioException) {
-        print('DioError details: ${e.response?.data}');
-        print('DioError message: ${e.message}');
-        print('DioError type: ${e.type}');
-      }
-      return {
-        'success': false,
-        'message': e.toString(),
-      };
-    }
+  Future<String?> getDocumentFileUrl(String documentId) async {
+  final baseUrl = getBaseUrl(); // misalnya https://yourdomain.com/api
+  try {
+    final url = '$baseUrl/documents/$documentId/file';
+    return url;
+  } catch (e) {
+    print('Error generating file URL: $e');
+    return null;
   }
+}
 
   // Method untuk upload revisi dokumen
   Future<Map<String, dynamic>> uploadRevisiDocument({
@@ -727,16 +769,4 @@ class DocumentService {
       };
     }
   }
-  
-  Future<String?> getDocumentFileUrl(String documentId) async {
-  final baseUrl = getBaseUrl(); // misalnya https://yourdomain.com/api
-  try {
-    final url = '$baseUrl/documents/$documentId/file';
-    return url;
-  } catch (e) {
-    print('Error generating file URL: $e');
-    return null;
-  }
-}
-
 }

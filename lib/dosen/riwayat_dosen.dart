@@ -53,7 +53,7 @@ class _DosenRiwayatPageState extends State<DosenRiwayatPage> {
   List<Map<String, dynamic>> _filterApprovedOrRejected(List<Map<String, dynamic>> docs) {
     return docs.where((doc) {
       final status = doc['status']?.toString().toLowerCase();
-      return status == 'disetujui' || status == 'butuh revisi';
+      return status == 'disahkan' || status == 'butuh revisi';
     }).toList();
   }
 
@@ -68,7 +68,7 @@ class _DosenRiwayatPageState extends State<DosenRiwayatPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _documents.isEmpty
-              ? const Center(child: Text('Tidak ada dokumen disetujui/ditolak'))
+              ? const Center(child: Text('Tidak ada dokumen Disahkan/Revisi'))
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: _documents.length,
