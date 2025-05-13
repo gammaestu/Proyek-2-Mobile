@@ -165,7 +165,7 @@ class DocumentService {
         return 'http://10.0.2.2:8000/api';
       }
       // Untuk device fisik, gunakan IP komputer Anda
-      return 'http://192.168.1.2:8000/api'; // Ganti dengan IP komputer Anda
+      return 'http://192.168.1.12:8000/api'; // Ganti dengan IP komputer Anda
     }
     return 'http://localhost:8000/api';
   }
@@ -626,7 +626,7 @@ class DocumentService {
     try {
       final token = await _authService.getToken();
       print('Getting document file for ID: $documentId');
-      
+
       if (token == null) {
         return {
           'success': false,
@@ -635,45 +635,36 @@ class DocumentService {
       }
 
       final response = await _dio.get(
-        '/dosen/documents/$documentId/file',
+        '/dosen/documents/$documentId/view',
         options: Options(
           headers: {
             'Authorization': 'Bearer $token',
-            'Accept': 'application/json',
+            'Accept': 'application/pdf',
           },
-          validateStatus: (status) {
-            return status! < 500; // Allow all status codes below 500
-          },
+          responseType: ResponseType.bytes,
+          receiveTimeout: const Duration(seconds: 180), // Timeout lebih lama
+          sendTimeout: const Duration(seconds: 180),
         ),
       );
 
       print('Response status: ${response.statusCode}');
-      print('Response data type: ${response.data.runtimeType}');
 
       if (response.statusCode == 200) {
-        if (response.data['success'] == true && response.data['data'] != null) {
-          return {
-            'success': true,
-            'data': response.data['data'],
-            'message': 'File berhasil diambil'
-          };
-        } else {
-          return {
-            'success': false,
-            'message': response.data['message'] ?? 'Data tidak valid'
-          };
-        }
-      } else {
         return {
-          'success': false,
-          'message': 'Gagal mengambil file: ${response.statusCode}'
+          'success': true,
+          'data': response.data,
         };
       }
+
+      return {
+        'success': false,
+        'message': 'Gagal mengambil file: ${response.statusCode}'
+      };
     } catch (e) {
       print('Error getting document file: $e');
       return {
         'success': false,
-        'message': 'Error: ${e.toString()}'
+        'message': 'Error: $e'
       };
     }
   }

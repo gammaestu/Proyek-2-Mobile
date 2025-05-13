@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../component/navbar_dosen.dart';
 import '../services/document_service.dart';
+import '../component/appbar_dosen.dart';
 
 class DosenRiwayatPage extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -61,9 +62,9 @@ class _DosenRiwayatPageState extends State<DosenRiwayatPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.blue,
-        title: const Text("Riwayat Pengesahan Dokumen"),
+      appBar: AppBarDosen(
+        namaDosen: widget.userData?['nama'],
+        title: "Riwayat",
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

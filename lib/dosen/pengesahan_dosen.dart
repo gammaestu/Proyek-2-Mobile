@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../component/navbar_dosen.dart';
+import '../component/appbar_dosen.dart';
 import 'dart:convert';
+import 'dart:typed_data';  // Tambahkan ini
 import 'package:http/http.dart' as http;
 import '../services/document_service.dart';
 import 'qr_code_page.dart';
@@ -162,96 +164,78 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
   }
 
   Future<void> _viewDocument(String documentId) async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
+    if (_isLoading) return; // Cegah klik ganda
+    setState(() => _isLoading = true);
 
+    // Tampilkan loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
       print('=== MULAI MEMUAT PDF ===');
       print('Document ID: $documentId');
 
-      // Panggil API untuk mendapatkan file PDF
       final response = await _documentService.getDocumentFile(documentId);
-      print('Response dari server:');
-      print('Success: ${response['success']}');
-      print('Message: ${response['message']}');
-      print('Data length: ${response['data']?.length ?? 0}');
 
-      if (response['success'] == true && response['data'] != null) {
-        final base64String = response['data'] as String;
-        print('Panjang string base64: ${base64String.length}');
+      if (!mounted) return;
 
-        if (base64String.isEmpty) {
-          throw Exception('Data PDF kosong');
-        }
+      if (response['success'] && response['data'] != null) {
+        final Uint8List bytes = response['data'];
 
-        final bytes = base64.decode(base64String);
-        print('Panjang bytes yang didecode: ${bytes.length}');
+        // Tutup loading dialog sebelum push halaman baru
+        if (mounted) Navigator.pop(context);
 
-        if (!mounted) return;
-
-        // Navigasi ke halaman PDF Viewer
         await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => Scaffold(
               appBar: AppBar(
-                title: const Text('Dokumen PDF'),
+                title: Text('Dokumen #$documentId'),
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_back),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
+                  onPressed: () => Navigator.pop(context),
                 ),
               ),
-              body: SfPdfViewer.memory(
-                bytes,
-                enableDocumentLinkAnnotation: true,
-                enableHyperlinkNavigation: true,
-                pageSpacing: 0,
-                onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
-                  print('=== ERROR PDF VIEWER ===');
-                  print('Error: ${details.error}');
-                  print('Description: ${details.description}');
-                  if (mounted) {
+              body: Container(
+                color: Colors.white,
+                child: SfPdfViewer.memory(
+                  bytes,
+                  canShowScrollHead: true,
+                  enableDocumentLinkAnnotation: false,
+                  enableTextSelection: true,
+                  onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
+                    print('Error loading PDF: ${details.error}');
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Gagal memuat PDF: ${details.description}'),
-                        duration: const Duration(seconds: 5),
-                      ),
+                      SnackBar(content: Text('Gagal memuat PDF: ${details.error}')),
                     );
-                  }
-                },
-                onDocumentLoaded: (PdfDocumentLoadedDetails details) {
-                  print('=== PDF BERHASIL DIMUAT ===');
-                  print('Jumlah halaman: ${details.document.pages.count}');
-                },
+                  },
+                  onDocumentLoaded: (PdfDocumentLoadedDetails details) {
+                    print('PDF loaded successfully');
+                  },
+                ),
               ),
             ),
           ),
         );
       } else {
-        print('=== ERROR RESPONSE SERVER ===');
-        print('Message: ${response['message']}');
-        throw Exception(response['message'] ?? 'Format response tidak valid');
+        if (mounted) Navigator.pop(context); // Tutup loading dialog
+        throw Exception(response['message'] ?? 'Gagal memuat dokumen');
       }
     } catch (e) {
       print('=== ERROR UMUM ===');
       print('Error: $e');
-      print('Stack trace: ${StackTrace.current}');
       if (mounted) {
+        Navigator.pop(context); // Tutup loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal membuka dokumen: $e'),
-            duration: const Duration(seconds: 5),
-          ),
+          SnackBar(content: Text('Error: ${e.toString()}')),
         );
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
       print('=== SELESAI MEMUAT PDF ===');
     }
@@ -586,8 +570,11 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: _buildAppBar(),
+      backgroundColor: const Color(0xFFF6F8FB),
+      appBar: AppBarDosen(
+        namaDosen: widget.userData?['nama'],
+        title: "Pengesahan",
+      ),
       body: RefreshIndicator(
         onRefresh: _fetchDocuments,
         child: Padding(
@@ -595,92 +582,139 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Perlu Pengesahan", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 10),
+              const Text(
+                "Perlu Pengesahan",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blueAccent),
+              ),
+              const SizedBox(height: 14),
               Row(
                 children: [
-                  const Text("Filter: "),
-                  const SizedBox(width: 10),
-                  DropdownButton<String>(
-                    value: _selectedStatusFilter,
-                    items: _statusOptions.entries.map((entry) {
-                      return DropdownMenuItem(
-                        value: entry.key,
-                        child: Text(entry.value),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _selectedStatusFilter = value;
-                        });
-                      }
-                    },
+                  const Icon(Icons.filter_alt, color: Colors.blueAccent),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        labelText: "Filter Status",
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedStatusFilter,
+                          items: _statusOptions.entries.map((entry) {
+                            return DropdownMenuItem(
+                              value: entry.key,
+                              child: Text(entry.value),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                _selectedStatusFilter = value;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ),
                   ),
                 ],
-            ),
-            const SizedBox(height: 10),
+              ),
+              const SizedBox(height: 16),
               if (_isLoading)
-                const Center(child: CircularProgressIndicator())
-              else if (_filteredDocuments().isEmpty)
-                const Center(child: Text('Tidak ada dokumen'))
+                const Expanded(
+                  child: Center(
+                    child: CircularProgressIndicator(strokeWidth: 5, color: Colors.blueAccent),
+                  ),
+                )
+              else if (_filterPendingDocuments(_filteredDocuments()).isEmpty)
+                Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.inbox, size: 80, color: Colors.grey[300]),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Tidak ada dokumen',
+                          style: TextStyle(fontSize: 18, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
               else
-            Expanded(
-              child: ListView.builder(
-                    itemCount: _documents.length,
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _filterPendingDocuments(_filteredDocuments()).length,
                     itemBuilder: (_, index) {
-                      final doc = _documents[index];
+                      final doc = _filterPendingDocuments(_filteredDocuments())[index];
+                      final statusColor = _getStatusColor(doc['status']);
                       return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        child: ListTile(
-                          title: Text('Nomor: ${doc['nomor_surat'] ?? '-'}'),
-                          subtitle: Column(
+                        elevation: 4,
+                        margin: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                          child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Hal: ${doc['hal'] ?? '-'}'),
-                              Text('Status: ${doc['status'] ?? '-'}', style: TextStyle(color: _getStatusColor(doc['status']))),
+                              CircleAvatar(
+                                backgroundColor: statusColor.withOpacity(0.15),
+                                child: Icon(Icons.description, color: statusColor),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Nomor: ${doc['nomor_surat'] ?? '-'}',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text('Hal: ${doc['hal'] ?? '-'}'),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.circle, color: statusColor, size: 12),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          doc['status']?.toString().toUpperCase() ?? '-',
+                                          style: TextStyle(
+                                            color: statusColor,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: () => _showDocumentDetail(context, doc),
+                                icon: const Icon(Icons.visibility, size: 18),
+                                label: const Text("Detail"),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.blueAccent,
+                                  side: const BorderSide(color: Colors.blueAccent),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                              ),
                             ],
                           ),
-                          trailing: ElevatedButton(
-                            onPressed: () => _showDocumentDetail(context, doc),
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-                            child: const Text("Lihat Detail", style: TextStyle(color: Colors.white)),
-                          ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
         ),
-      ),
       ),
       bottomNavigationBar: NavbarDosen(
         currentIndex: _selectedIndex,
         userData: widget.userData,
-      ),
-    );
-  }
-
-  AppBar _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.blue,
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Text("SIGNIX", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-          Row(
-            children: [
-              Text(widget.userData?['nama'] ?? "Dosen", style: const TextStyle(color: Colors.white)),
-              const SizedBox(width: 10),
-              const CircleAvatar(
-                backgroundColor: Colors.white,
-                radius: 16,
-                child: Icon(Icons.person, color: Colors.blue, size: 20),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }

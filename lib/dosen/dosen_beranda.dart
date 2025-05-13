@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../component/navbar_dosen.dart';
+import '../component/appbar_dosen.dart';
 import '../services/auth_service.dart';
 import '../services/document_service.dart';
 
@@ -88,26 +89,9 @@ class _DosenBerandaPageState extends State<DosenBerandaPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("SIGNIX"),
-        backgroundColor: Colors.blue,
-        automaticallyImplyLeading: false,
-        actions: [
-          Row(
-            children: [
-              Text(
-                _displayName,
-                style: const TextStyle(color: Colors.white),
-              ),
-              const SizedBox(width: 10),
-              const CircleAvatar(
-                backgroundColor: Colors.white,
-                child: Icon(Icons.person, color: Colors.blue),
-              ),
-              const SizedBox(width: 10),
-            ],
-          ),
-        ],
+      appBar: AppBarDosen(
+        namaDosen: _displayName, // atau widget.userData?['nama'] sesuai data Anda
+        title: "SIGNIX",
       ),
       backgroundColor: Colors.white,
       body: RefreshIndicator(
