@@ -13,6 +13,7 @@ import 'package:universal_html/html.dart' as html;
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:open_file/open_file.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class OrmawaRiwayatPage extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -516,101 +517,72 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
         _error = null;
       });
 
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
       print('=== MULAI MEMUAT PDF ===');
       print('Document ID: $documentId');
-      print('File Name: $fileName');
 
-      final response = await _documentService.getDocumentFile(documentId);
-      print('Response dari server:');
-      print('Success: ${response['success']}');
-      print('Message: ${response['message']}');
-      print('Data length: ${response['data']?.length ?? 0}');
+      // Tambahkan parameter role 'ormawa'
+      final response = await _documentService.getDocumentFile(documentId, role: 'ormawa');
 
-      if (response['success'] == true && response['data'] != null) {
-        final base64String = response['data'] as String;
-        print('Panjang string base64: ${base64String.length}');
+      if (!mounted) return;
 
-        try {
-          if (base64String.isEmpty) {
-            throw Exception('Data PDF kosong');
-          }
+      if (response['success'] && response['data'] != null) {
+        final Uint8List bytes = response['data'];
+        
+        if (mounted) Navigator.pop(context);
 
-          final bytes = base64.decode(base64String);
-          print('Panjang bytes yang didecode: ${bytes.length}');
-
-          if (!mounted) return;
-
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => Scaffold(
-                appBar: AppBar(
-                  title: Text(fileName),
-                  leading: IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                  ),
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => Scaffold(
+              appBar: AppBar(
+                title: Text('Dokumen'),
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => Navigator.pop(context),
                 ),
-                body: SfPdfViewer.memory(
+              ),
+              body: Container(
+                color: Colors.white,
+                child: SfPdfViewer.memory(
                   bytes,
-                  enableDocumentLinkAnnotation: true,
-                  enableHyperlinkNavigation: true,
-                  pageSpacing: 0,
+                  canShowScrollHead: true,
+                  enableDocumentLinkAnnotation: false,
+                  enableTextSelection: true,
                   onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
-                    print('=== ERROR PDF VIEWER ===');
-                    print('Error: ${details.error}');
-                    print('Description: ${details.description}');
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content:
-                              Text('Gagal memuat PDF: ${details.description}'),
-                          duration: const Duration(seconds: 5),
-                        ),
-                      );
-                    }
+                    print('Error loading PDF: ${details.error}');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Gagal memuat PDF: ${details.error}')),
+                    );
                   },
                   onDocumentLoaded: (PdfDocumentLoadedDetails details) {
-                    print('=== PDF BERHASIL DIMUAT ===');
-                    print('Jumlah halaman: ${details.document.pages.count}');
+                    print('PDF loaded successfully');
                   },
                 ),
               ),
             ),
-          );
-        } catch (e) {
-          print('=== ERROR MEMPROSES PDF ===');
-          print('Error: $e');
-          print('Stack trace: ${StackTrace.current}');
-          throw Exception('Gagal memproses file PDF: $e');
-        }
+          ),
+        );
       } else {
-        print('=== ERROR RESPONSE SERVER ===');
-        print('Message: ${response['message']}');
-        throw Exception(response['message'] ?? 'Format response tidak valid');
+        if (mounted) Navigator.pop(context);
+        throw Exception(response['message'] ?? 'Gagal memuat dokumen');
       }
     } catch (e) {
-      print('=== ERROR UMUM ===');
-      print('Error: $e');
-      print('Stack trace: ${StackTrace.current}');
+      print('Error viewing document: $e');
       if (mounted) {
-        setState(() {
-          _error = 'Gagal membuka dokumen: $e';
-        });
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal membuka dokumen: $e'),
-            duration: const Duration(seconds: 5),
-          ),
+          SnackBar(content: Text('Error: ${e.toString()}')),
         );
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isPdfLoading = false;
-        });
+        setState(() => _isPdfLoading = false);
       }
       print('=== SELESAI MEMUAT PDF ===');
     }
@@ -618,97 +590,87 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
 
   Future<void> _downloadDocument(String documentId) async {
     try {
-      setState(() {
-        _isLoading = true;
-      });
+      setState(() => _isLoading = true);
+
+      // Request storage permissions
+      Map<Permission, PermissionStatus> statuses = await [
+        Permission.storage,
+        Permission.manageExternalStorage,
+      ].request();
+
+      if (!statuses[Permission.storage]!.isGranted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Izin penyimpanan diperlukan untuk mengunduh file'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
 
       // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
       final result = await _documentService.downloadDocument(documentId);
 
       if (result['success'] && result['data'] != null) {
-        final base64String = result['data'] as String;
-        final bytes = base64.decode(base64String);
+        final bytes = result['data'] as Uint8List;
         final fileName = result['filename'] ?? 'document.pdf';
 
-        if (kIsWeb) {
-          // For web platform
-          final blob = html.Blob([bytes]);
-          final url = html.Url.createObjectUrlFromBlob(blob);
-          final anchor = html.AnchorElement(href: url)
-            ..setAttribute("download", fileName)
-            ..click();
-          html.Url.revokeObjectUrl(url);
+        // Get the Downloads directory
+        final directory = await getExternalStorageDirectory();
+        String downloadPath = directory!.path.replaceAll(
+            "Android/data/com.example.your_app_name/files", "Download");
 
-          if (mounted) {
-            Navigator.pop(context); // Close loading dialog
-            _showDownloadToast(fileName, '');
-          }
-        } else {
-          // For mobile platform
-          try {
-            // Get the public Downloads directory
-            final directory = Directory('/storage/emulated/0/Download');
-            if (!await directory.exists()) {
-              await directory.create(recursive: true);
-            }
+        final dir = Directory(downloadPath);
+        if (!await dir.exists()) {
+          await dir.create(recursive: true);
+        }
 
-            final file = File('${directory.path}/$fileName');
-            await file.writeAsBytes(bytes);
+        final file = File('${dir.path}/$fileName');
+        await file.writeAsBytes(bytes);
 
-            if (mounted) {
-              Navigator.pop(context); // Close loading dialog
-
-              // Show toast with file location
-              Fluttertoast.showToast(
-                msg: 'File disimpan di: Download/$fileName',
-                toastLength: Toast.LENGTH_LONG,
-                gravity: ToastGravity.BOTTOM,
-                timeInSecForIosWeb: 5,
-                backgroundColor: Colors.green,
+        if (mounted) {
+          Navigator.pop(context); // Close loading dialog
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('File berhasil disimpan di Download/$fileName'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'Buka',
                 textColor: Colors.white,
-                fontSize: 16.0,
-              );
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content:
-                      Text('File berhasil disimpan di:\nDownload/$fileName'),
-                  backgroundColor: Colors.green,
-                  duration: const Duration(seconds: 5),
-                  action: SnackBarAction(
-                    label: 'Buka File',
-                    onPressed: () async {
-                      final result = await OpenFile.open(file.path);
-                      print('Open file result: $result');
-                    },
-                  ),
-                ),
-              );
-            }
-          } catch (e) {
-            if (mounted) {
-              Navigator.pop(context); // Close loading dialog
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                      'Gagal menyimpan file: $e\nCoba periksa izin penyimpanan'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          }
+                onPressed: () async {
+                  try {
+                    final result = await OpenFile.open(file.path);
+                    if (result.type != ResultType.done) {
+                      throw Exception(result.message);
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Gagal membuka file: ${e.toString()}'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+            ),
+          );
         }
       } else {
         if (mounted) {
-          Navigator.pop(context); // Close loading dialog
+          Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(result['message'] ?? 'Gagal mengunduh dokumen'),
@@ -720,7 +682,7 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
     } catch (e) {
       print('Download error: $e');
       if (mounted) {
-        Navigator.pop(context); // Close loading dialog
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${e.toString()}'),
@@ -730,9 +692,7 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }

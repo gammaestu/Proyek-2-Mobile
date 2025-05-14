@@ -15,6 +15,8 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:open_file/open_file.dart';
 import 'dart:math';
 import '../services/auth_service.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:path_provider/path_provider.dart';
 
 class DosenPengesahanPage extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -111,7 +113,7 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
                 Text('Pengaju: ${document['namaMahasiswa'] ?? '-'}'),
                 if (document['keterangan'] != null)
                   Text('Keterangan: ${document['keterangan']}'),
-                Text('Tanggal Pengajuan: ${document['created_at'] ?? '-'}'),
+                Text('Tanggal Pengajuan: ${document['tanggal_pengajuan'] ?? '-'}'),
                 const SizedBox(height: 16),
                 Wrap(
                   spacing: 8,
@@ -193,7 +195,7 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
           MaterialPageRoute(
             builder: (context) => Scaffold(
               appBar: AppBar(
-                title: Text('Dokumen #$documentId'),
+                title: Text('Dokumen'),
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_back),
                   onPressed: () => Navigator.pop(context),
@@ -350,121 +352,89 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
 
   Future<void> _downloadDocument(dynamic documentId) async {
     try {
-      setState(() {
-        _isLoading = true;
-      });
+      setState(() => _isLoading = true);
+
+      // Request multiple permissions
+      Map<Permission, PermissionStatus> statuses = await [
+        Permission.storage,
+        Permission.manageExternalStorage,
+      ].request();
+
+      if (!statuses[Permission.storage]!.isGranted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Izin penyimpanan diperlukan untuk mengunduh file'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        setState(() => _isLoading = false);
+        return;
+      }
 
       // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        builder: (context) => const Center(child: CircularProgressIndicator()),
       );
-      
-      // Konversi documentId ke String jika diperlukan
-      final String docId = documentId.toString();
-      
-      print('Downloading document with ID: $docId');
 
+      final String docId = documentId.toString();
       final result = await _documentService.downloadDocument(docId);
 
       if (result['success'] && result['data'] != null) {
-        final base64String = result['data'] as String;
+        final bytes = result['data'] as Uint8List;
+        final fileName = result['filename'] ?? 'document.pdf';
+
+        // Get the Downloads directory using path_provider
+        final directory = await getExternalStorageDirectory();
+        String downloadPath = directory!.path.replaceAll("Android/data/com.example.your_app_name/files", "Download");
         
-        // Log untuk debugging
-        print('Base64 string length: ${base64String.length}');
-        print('Base64 string sample (first 20 chars): ${base64String.substring(0, min(20, base64String.length))}');
-        
-        try {
-          final bytes = base64.decode(base64String);
-          final fileName = result['filename'] ?? 'document.pdf';
+        final dir = Directory(downloadPath);
+        if (!await dir.exists()) {
+          await dir.create(recursive: true);
+        }
+
+        final file = File('${dir.path}/$fileName');
+        await file.writeAsBytes(bytes);
+
+        if (mounted) {
+          Navigator.pop(context); // Close loading dialog
           
-          print('Successfully decoded base64 to ${bytes.length} bytes');
-
-          if (kIsWeb) {
-            // For web platform
-            final blob = html.Blob([bytes]);
-            final url = html.Url.createObjectUrlFromBlob(blob);
-            final anchor = html.AnchorElement(href: url)
-              ..setAttribute("download", fileName)
-              ..click();
-            html.Url.revokeObjectUrl(url);
-
-            if (mounted) {
-              Navigator.pop(context); // Close loading dialog
-              _showToast(fileName, '');
-            }
-          } else {
-            // For mobile platform
-            try {
-              // Get the Downloads directory
-              final directory = Directory('/storage/emulated/0/Download');
-              if (!await directory.exists()) {
-                await directory.create(recursive: true);
-              }
-
-              final file = File('${directory.path}/$fileName');
-              await file.writeAsBytes(bytes);
-
-              if (mounted) {
-                Navigator.pop(context); // Close loading dialog
-
-                // Show toast with file location
-                Fluttertoast.showToast(
-                  msg: 'File disimpan di: Download/$fileName',
-                  toastLength: Toast.LENGTH_LONG,
-                  gravity: ToastGravity.BOTTOM,
-                  timeInSecForIosWeb: 5,
-                  backgroundColor: Colors.green,
-                  textColor: Colors.white,
-                  fontSize: 16.0,
-                );
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('File berhasil disimpan di:\nDownload/$fileName'),
-                    backgroundColor: Colors.green,
-                    duration: const Duration(seconds: 5),
-                    action: SnackBarAction(
-                      label: 'Buka File',
-                      onPressed: () async {
-                        final result = await OpenFile.open(file.path);
-                        print('Open file result: $result');
-                      },
-                    ),
-                  ),
-                );
-              }
-            } catch (e) {
-              print('Error saving file: $e');
-              if (mounted) {
-                Navigator.pop(context); // Close loading dialog
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Gagal menyimpan file: $e\nCoba periksa izin penyimpanan'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            }
-          }
-        } catch (e) {
-          print('Error decoding base64: $e');
-          if (mounted) {
-            Navigator.pop(context); // Close loading dialog
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Gagal memproses file: $e'),
-                backgroundColor: Colors.red,
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('File berhasil disimpan di Download/$fileName'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'Buka',
+                textColor: Colors.white,
+                onPressed: () async {
+                  try {
+                    final result = await OpenFile.open(file.path);
+                    if (result.type != ResultType.done) {
+                      throw Exception(result.message);
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Gagal membuka file: ${e.toString()}'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
               ),
-            );
-          }
+            ),
+          );
         }
       } else {
         if (mounted) {
-          Navigator.pop(context); // Close loading dialog
+          Navigator.pop(context); // Close loading
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(result['message'] ?? 'Gagal mengunduh dokumen'),
@@ -476,7 +446,7 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
     } catch (e) {
       print('Download error: $e');
       if (mounted) {
-        Navigator.pop(context); // Close loading dialog
+        Navigator.pop(context); // Close loading
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${e.toString()}'),
@@ -485,11 +455,7 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      setState(() => _isLoading = false);
     }
   }
 

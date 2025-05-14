@@ -492,78 +492,40 @@ class DocumentService {
         };
       }
 
-      print('Downloading document with ID: $documentId');
-      print('Using base URL: ${_dio.options.baseUrl}');
-      
-      // Use a different endpoint based on the user role
-      // Try /dosen/documents/{id}/file first, if it fails, try /ormawa/documents/{id}/file
-      try {
-        print('Trying dosen endpoint first...');
-        final response = await _dio.get(
-          '/dosen/documents/$documentId/file',
-          options: Options(
-            responseType: ResponseType.json,
-            headers: {
-              'Authorization': 'Bearer $token',
-              'Accept': 'application/json',
-            },
-          ),
-        );
-        
-        print('Dosen endpoint response: ${response.statusCode}');
-        
-        if (response.statusCode == 200 && response.data['success'] == true) {
-          return {
-            'success': true,
-            'data': response.data['data'],
-            'filename': response.data['filename'] ?? 'document.pdf',
-          };
-        }
-      } catch (e) {
-        print('Error using dosen endpoint: $e, trying ormawa endpoint...');
-      }
-      
-      // Try ormawa endpoint as fallback
       final response = await _dio.get(
-        '/ormawa/documents/$documentId/file',
+        '/dosen/documents/$documentId/download',
         options: Options(
-          responseType: ResponseType.json,
+          responseType: ResponseType.bytes,
           headers: {
             'Authorization': 'Bearer $token',
-            'Accept': 'application/json',
+            'Accept': 'application/pdf',
           },
+          validateStatus: (status) => status != null && status < 500,
         ),
       );
 
-      print('Ormawa endpoint response status: ${response.statusCode}');
-      
       if (response.statusCode == 200) {
-        final data = response.data;
-        if (data['success'] == true && data['data'] != null) {
-          return {
-            'success': true,
-            'data': data['data'],
-            'filename': data['filename'] ?? 'document.pdf',
-          };
-        } else {
-          return {
-            'success': false,
-            'message': data['message'] ?? 'Gagal mengunduh dokumen',
-          };
+        String fileName = 'document_$documentId.pdf';
+        if (response.headers.map.containsKey('content-disposition')) {
+          final disposition = response.headers.value('content-disposition');
+          if (disposition != null && disposition.contains('filename=')) {
+            fileName = disposition.split('filename=').last.replaceAll('"', '');
+          }
         }
-      } else {
+
         return {
-          'success': false,
-          'message': 'Gagal mengunduh dokumen: ${response.statusCode}',
+          'success': true,
+          'data': response.data,
+          'filename': fileName,
         };
-      }
+      } 
+
+      return {
+        'success': false,
+        'message': 'Gagal mengunduh dokumen: ${response.statusCode}',
+      };
     } catch (e) {
       print('Error in downloadDocument: $e');
-      if (e is DioException) {
-        print('DioError details: ${e.response?.data}');
-        print('DioError message: ${e.message}');
-        print('DioError type: ${e.type}');
-      }
       return {
         'success': false,
         'message': e.toString(),
@@ -622,10 +584,10 @@ class DocumentService {
     }
   }
 
-  Future<Map<String, dynamic>> getDocumentFile(String documentId) async {
+  Future<Map<String, dynamic>> getDocumentFile(String documentId, {String role = 'dosen'}) async {
     try {
       final token = await _authService.getToken();
-      print('Getting document file for ID: $documentId');
+      print('Getting document file for ID: $documentId with role: $role');
 
       if (token == null) {
         return {
@@ -634,15 +596,19 @@ class DocumentService {
         };
       }
 
+      // Tentukan endpoint berdasarkan role
+      final endpoint = '/$role/documents/$documentId/view';
+      print('Using endpoint: $endpoint');
+
       final response = await _dio.get(
-        '/dosen/documents/$documentId/view',
+        endpoint,
         options: Options(
           headers: {
             'Authorization': 'Bearer $token',
             'Accept': 'application/pdf',
           },
           responseType: ResponseType.bytes,
-          receiveTimeout: const Duration(seconds: 180), // Timeout lebih lama
+          receiveTimeout: const Duration(seconds: 180),
           sendTimeout: const Duration(seconds: 180),
         ),
       );
