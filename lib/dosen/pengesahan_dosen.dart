@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../component/navbar_dosen.dart';
 import '../component/appbar_dosen.dart';
 import 'dart:convert';
-import 'dart:typed_data';  // Tambahkan ini
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../services/document_service.dart';
 import 'qr_code_page.dart';
@@ -17,6 +17,7 @@ import 'dart:math';
 import '../services/auth_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
+import 'qr_placement_page.dart';
 
 class DosenPengesahanPage extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -79,9 +80,10 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
 
   List<Map<String, dynamic>> _filterPendingDocuments(List<Map<String, dynamic>> docs) {
     return docs.where((doc) {
-      final status = doc['status']?.toString().toLowerCase();
-      // Hanya tampilkan dokumen dengan status yang sesuai
-      return status == 'diajukan' || status == 'sudah direvisi';
+      final status = (doc['status'] ?? '').toString().toLowerCase().trim();
+      print('Filtering document with status: $status'); // Debug print
+      // Perbaiki kondisi untuk mencakup 'sudah direvisi'
+      return status == 'diajukan' || status == 'sudah direvisi' || status == 'sudah_direvisi';
     }).toList();
   }
 
@@ -90,78 +92,151 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
     
     return _documents.where((doc) {
       final status = (doc['status'] ?? '').toString().toLowerCase().trim();
-      // Konversi status dari database ke format yang sesuai
+      // Normalisasi status dari database
       final normalizedStatus = status.replaceAll(' ', '_');
-      print('Status dokumen: $status, Filter: $_selectedStatusFilter'); // Debug print
-      return normalizedStatus == _selectedStatusFilter.toLowerCase();
+      print('Status from DB: $status');
+      print('Normalized status: $normalizedStatus');
+      print('Selected filter: $_selectedStatusFilter');
+      
+      if (_selectedStatusFilter.toLowerCase() == 'sudah direvisi') {
+        // Cek kedua format untuk 'sudah direvisi'
+        return status == 'sudah direvisi' || normalizedStatus == 'sudah_direvisi';
+      }
+      
+      return normalizedStatus == _selectedStatusFilter.toLowerCase() ||
+             status == _selectedStatusFilter.toLowerCase();
     }).toList();
   }
 
   void _showDocumentDetail(BuildContext context, Map<String, dynamic> document) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Detail Dokumen'),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Nomor Surat : ${document['nomor_surat'] ?? '-'}'),
-                Text('Perihal : ${document['hal'] ?? '-'}'),
-                Text('Status: ${document['status'] ?? '-'}'), // Gunakan kunci status
-                Text('Pengaju: ${document['namaMahasiswa'] ?? '-'}'),
-                if (document['keterangan'] != null)
-                  Text('Keterangan: ${document['keterangan']}'),
-                Text('Tanggal Pengajuan: ${document['tanggal_pengajuan'] ?? '-'}'),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 100,
-                      child: ElevatedButton(
-                        onPressed: () => _viewDocument(document['id'].toString()),
-                        child: const Text('Lihat'),
-                      ),
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Detail Dokumen'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Nomor Surat : ${document['nomor_surat'] ?? '-'}'),
+              Text('Perihal : ${document['hal'] ?? '-'}'),
+              Text('Status: ${document['status'] ?? '-'}'), // Gunakan kunci status
+              Text('Pengaju: ${document['namaMahasiswa'] ?? '-'}'),
+              if (document['keterangan'] != null)
+                Text('Keterangan: ${document['keterangan']}'),
+              Text('Tanggal Pengajuan: ${document['tanggal_pengajuan'] ?? '-'}'),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 100,
+                    child: ElevatedButton(
+                      onPressed: () => _viewDocument(document['id'].toString()),
+                      child: const Text('Lihat'),
                     ),
-                    SizedBox(
-                      width: 100,
-                      child: ElevatedButton(
-                        onPressed: () => _markForRevision(document['id'].toString()),
-                        child: const Text('Revisi'),
-                      ),
+                  ),
+                  SizedBox(
+                    width: 100,
+                    child: ElevatedButton(
+                      onPressed: () => _markForRevision(document['id'].toString()),
+                      child: const Text('Revisi'),
                     ),
-                    SizedBox(
-                      width: 100,
-                      child: ElevatedButton(
-                        onPressed: () => _downloadDocument(document['id']),
-                        child: const Text('Download'),
-                      ),
+                  ),
+                  SizedBox(
+                    width: 100,
+                    child: ElevatedButton(
+                      onPressed: () => _downloadDocument(document['id']),
+                      child: const Text('Download'),
                     ),
-                    SizedBox(
-                      width: 100,
-                      child: ElevatedButton(
-                        onPressed: () => _addQrCode(document['id']),
-                        child: const Text('QR Code'),
-                      ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      // Close detail dialog first
+                      Navigator.pop(dialogContext);
+
+                      // Show loading indicator in a separate dialog
+                      BuildContext? loadingContext;
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (ctx) {
+                          loadingContext = ctx;
+                          return const Center(child: CircularProgressIndicator());
+                        },
+                      );
+
+                      try {
+                        final response = await _documentService.getDocumentFile(
+                          document['id'].toString(),
+                          role: 'dosen'
+                        );
+
+                        // Close loading dialog safely
+                        if (loadingContext != null && Navigator.canPop(loadingContext!)) {
+                          Navigator.pop(loadingContext!);
+                        }
+
+                        if (response['success'] && response['data'] != null) {
+                          if (!mounted) return;
+
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => QrPlacementPage(
+                                documentId: document['id'].toString(),
+                                pdfBytes: response['data'],
+                                fileName: 'Dokumen #${document['id']}',
+                              ),
+                            ),
+                          );
+
+                          // Refresh documents list if needed
+                          if (mounted) {
+                            await _fetchDocuments();
+                          }
+                        } else {
+                          throw Exception(response['message'] ?? 'Gagal memuat dokumen');
+                        }
+                      } catch (e) {
+                        // Close loading dialog if still showing
+                        if (loadingContext != null && Navigator.canPop(loadingContext!)) {
+                          Navigator.pop(loadingContext!);
+                        }
+
+                        if (!mounted) return;
+
+                        // Show error message
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: ${e.toString()}'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.qr_code),
+                    label: const Text('QR Code'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-              ],
-            ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Tutup'),
-            ),
-          ],
-        );
-      },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Tutup'),
+          ),
+        ],
+      ),
     );
   }
 

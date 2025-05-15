@@ -165,7 +165,7 @@ class DocumentService {
         return 'http://10.0.2.2:8000/api';
       }
       // Untuk device fisik, gunakan IP komputer Anda
-      return 'http://192.168.1.12:8000/api'; // Ganti dengan IP komputer Anda
+      return 'http://192.168.43.103:8000/api'; // Ganti dengan IP komputer Anda
     }
     return 'http://localhost:8000/api';
   }
@@ -548,15 +548,16 @@ class DocumentService {
       }
 
       final response = await _dio.post(
-        '/dosen/documents/$documentId/qr-code',
-        data: position,
+        '/dosen/documents/$documentId/approve',
+        data: {
+          'qr_position': position,
+        },
         options: Options(
           headers: {
             'Authorization': 'Bearer $token',
             'Accept': 'application/json',
             'Content-Type': 'application/json',
           },
-          validateStatus: (status) => status! < 500, // Allow 4xx errors to be handled
         ),
       );
 
@@ -566,13 +567,13 @@ class DocumentService {
       if (response.statusCode == 200) {
         return {
           'success': true,
-          'message': 'QR Code berhasil ditambahkan',
-          'data': response.data['data'],
+          'message': 'Dokumen berhasil ditandatangani',
+          'data': response.data,
         };
       } else {
         return {
           'success': false,
-          'message': response.data['message'] ?? 'Gagal menambahkan QR Code',
+          'message': response.data['message'] ?? 'Gagal menandatangani dokumen',
         };
       }
     } catch (e) {
