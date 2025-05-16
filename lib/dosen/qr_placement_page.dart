@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../services/document_service.dart';
 import 'dart:typed_data';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
+import 'dart:convert';
+import 'dart:math';
 
 class QrPlacementPage extends StatefulWidget {
   final String documentId;
@@ -26,6 +31,9 @@ class _QrPlacementPageState extends State<QrPlacementPage> {
   bool _isLoading = false;
   bool _isDragging = false;
   late PdfViewerController _pdfViewerController;
+  double _qrSize = 120.0; // Default QR code size
+  bool _isResizing = false;
+  GlobalKey _qrKey = GlobalKey();
 
   @override
   void initState() {
@@ -63,12 +71,26 @@ class _QrPlacementPageState extends State<QrPlacementPage> {
         ),
       );
 
-      if (confirm != true) return;
+      if (confirm != true) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // First create a PNG image from the QR code
+      final qrImage = await _captureQrCodeAsPng();
+      if (qrImage == null) {
+        throw Exception('Gagal membuat gambar QR code');
+      }
+
+      // Convert bytes to base64 string
+      final qrBase64 = base64Encode(qrImage);
 
       final position = {
         'x': _qrPosition.dx,
         'y': _qrPosition.dy,
         'page': _currentPage,
+        'size': _qrSize,
+        'qr_image': qrBase64, // Send the QR code image
       };
 
       final result = await _documentService.addQrCode(widget.documentId, position);
@@ -97,6 +119,22 @@ class _QrPlacementPageState extends State<QrPlacementPage> {
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // Capture QR code as PNG bytes
+  Future<Uint8List?> _captureQrCodeAsPng() async {
+    try {
+      final boundary = _qrKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return null;
+      
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      
+      return byteData?.buffer.asUint8List();
+    } catch (e) {
+      print('Error capturing QR code: $e');
+      return null;
     }
   }
 
@@ -137,91 +175,177 @@ class _QrPlacementPageState extends State<QrPlacementPage> {
           const SizedBox(width: 8), // Add padding at the end
         ],
       ),
-      body: Stack(
-        children: [
-          SfPdfViewer.memory(
-            widget.pdfBytes,
-            controller: _pdfViewerController,
-            onPageChanged: (PdfPageChangedDetails details) {
-              setState(() => _currentPage = details.newPageNumber);
-            },
-          ),
-          Positioned(
-            left: _qrPosition.dx,
-            top: _qrPosition.dy,
-            child: Draggable(
-              feedback: _buildQrPreview(isDragging: true),
-              childWhenDragging: Container(),
-              onDragStarted: () => setState(() => _isDragging = true),
-              onDragEnd: (details) {
-                setState(() {
-                  final RenderBox box = context.findRenderObject() as RenderBox;
-                  final localPosition = box.globalToLocal(details.offset);
-                  _qrPosition = localPosition;
-                  _isDragging = false;
-                });
+      body: GestureDetector(
+        // Allow tapping anywhere on screen to place QR code
+        onTapDown: (details) {
+          if (!_isDragging && !_isResizing) {
+            setState(() {
+              _qrPosition = details.localPosition;
+            });
+          }
+        },
+        child: Stack(
+          children: [
+            SfPdfViewer.memory(
+              widget.pdfBytes,
+              controller: _pdfViewerController,
+              onPageChanged: (PdfPageChangedDetails details) {
+                setState(() => _currentPage = details.newPageNumber);
               },
-              child: _buildQrPreview(isDragging: false),
             ),
-          ),
-          // Helper text
-          Positioned(
-            bottom: 16,
-            left: 16,
-            right: 16,
-            child: Card(
-              color: Colors.black.withOpacity(0.7),
-              child: const Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Text(
-                  'Seret QR Code ke posisi yang diinginkan, lalu klik "Sahkan" untuk mengesahkan dokumen',
-                  style: TextStyle(color: Colors.white),
-                  textAlign: TextAlign.center,
+            // QR Code and Controls
+            Positioned(
+              left: _qrPosition.dx,
+              top: _qrPosition.dy,
+              child: Column(
+                children: [
+                  // Draggable QR Code
+                  GestureDetector(
+                    onPanUpdate: (details) {
+                      setState(() {
+                        _qrPosition = Offset(
+                          _qrPosition.dx + details.delta.dx,
+                          _qrPosition.dy + details.delta.dy,
+                        );
+                      });
+                    },
+                    child: _buildQrCode(isDragging: _isDragging),
+                  ),
+                  // Size Controls - always visible
+                  Container(
+                    width: _qrSize,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    margin: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _qrSize = max(80, _qrSize - 10);
+                            });
+                          },
+                          child: const Icon(Icons.zoom_out, size: 16, color: Colors.blue),
+                        ),
+                        Expanded(
+                          child: SliderTheme(
+                            data: SliderThemeData(
+                              thumbShape: RoundSliderThumbShape(enabledThumbRadius: 8),
+                              trackHeight: 4,
+                              overlayShape: SliderComponentShape.noOverlay,
+                            ),
+                            child: Slider(
+                              value: _qrSize,
+                              min: 80,
+                              max: 250,
+                              divisions: 17,
+                              activeColor: Colors.blue,
+                              inactiveColor: Colors.blue.shade100,
+                              onChanged: (value) {
+                                setState(() {
+                                  _qrSize = value;
+                                });
+                              },
+                              onChangeStart: (_) => setState(() => _isResizing = true),
+                              onChangeEnd: (_) => setState(() => _isResizing = false),
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _qrSize = min(250, _qrSize + 10);
+                            });
+                          },
+                          child: const Icon(Icons.zoom_in, size: 16, color: Colors.blue),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Drag hint
+            Positioned(
+              bottom: 16,
+              left: 16,
+              right: 16,
+              child: Card(
+                color: Colors.black.withOpacity(0.7),
+                child: const Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: Text(
+                    'Seret QR Code ke posisi yang diinginkan, lalu klik "Sahkan" untuk mengesahkan dokumen',
+                    style: TextStyle(color: Colors.white),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+            if (_isLoading)
+              Container(
+                color: Colors.black.withOpacity(0.3),
+                child: const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildQrPreview({required bool isDragging}) {
-    return Container(
-      width: 100,
-      height: 100,
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: isDragging ? Colors.blue.shade300 : Colors.blue,
-          width: 2,
-        ),
-        color: Colors.white.withOpacity(isDragging ? 0.9 : 0.7),
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: isDragging ? [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 8,
-            spreadRadius: 1,
-          )
-        ] : null,
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.qr_code_2,
-            size: 50,
+  Widget _buildQrCode({bool isDragging = false}) {
+    final url = DocumentService.getVerificationUrl(widget.documentId);
+    
+    return RepaintBoundary(
+      key: _qrKey,
+      child: Container(
+        width: _qrSize,
+        height: _qrSize,
+        decoration: BoxDecoration(
+          border: Border.all(
             color: isDragging ? Colors.blue.shade300 : Colors.blue,
+            width: 2,
           ),
-          const SizedBox(height: 4),
-          Text(
-            'QR Code',
-            style: TextStyle(
-              fontSize: 12,
-              color: isDragging ? Colors.blue.shade300 : Colors.blue,
-            ),
-          ),
-        ],
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: isDragging ? [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 8,
+              spreadRadius: 1,
+            )
+          ] : null,
+        ),
+        padding: const EdgeInsets.all(8),
+        child: QrImageView(
+          data: url,
+          version: QrVersions.auto,
+          size: _qrSize - 16,
+          backgroundColor: Colors.white,
+          errorStateBuilder: (context, error) {
+            return const Center(
+              child: Text(
+                'Error generating QR code',
+                style: TextStyle(color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+            );
+          },
+        ),
       ),
     );
   }

@@ -538,7 +538,7 @@ class DocumentService {
     try {
       final token = await _authService.getToken();
       print('Adding QR Code for document: $documentId');
-      print('Position data: $position');
+      print('Position data: ${position['x']}, ${position['y']}, page: ${position['page']}, size: ${position['size']}');
       
       if (token == null) {
         return {
@@ -546,6 +546,9 @@ class DocumentService {
           'message': 'Token tidak ditemukan',
         };
       }
+
+      // Log that QR image data is included
+      print('QR image data included: ${position['qr_image'] != null}');
 
       final response = await _dio.post(
         '/dosen/documents/$documentId/approve',
@@ -664,15 +667,23 @@ class DocumentService {
   }
 
   Future<String?> getDocumentFileUrl(String documentId) async {
-  final baseUrl = getBaseUrl(); // misalnya https://yourdomain.com/api
-  try {
-    final url = '$baseUrl/documents/$documentId/file';
-    return url;
-  } catch (e) {
-    print('Error generating file URL: $e');
-    return null;
+    final baseUrl = getBaseUrl(); // misalnya https://yourdomain.com/api
+    try {
+      final url = '$baseUrl/documents/$documentId/file';
+      return url;
+    } catch (e) {
+      print('Error generating file URL: $e');
+      return null;
+    }
   }
-}
+
+  // Get verification URL for a document
+  static String getVerificationUrl(String documentId) {
+    final baseUrl = getBaseUrl().replaceAll('/api', '');
+    // Ensure the base URL doesn't have trailing slashes
+    final cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    return '$cleanBaseUrl/verify/$documentId';
+  }
 
   // Method untuk upload revisi dokumen
   Future<Map<String, dynamic>> uploadRevisiDocument({

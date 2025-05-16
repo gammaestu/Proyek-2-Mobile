@@ -13,6 +13,7 @@ import 'dosen/pengesahan_dosen.dart';
 import 'dosen/riwayat_dosen.dart';
 import 'dosen/dosen_profile.dart';
 import 'dosen/pdf_viewer_page.dart';
+import 'verify/verify_document_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,6 +34,14 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: '/login',
       onGenerateRoute: (settings) {
+        // Handle verification route
+        if (settings.name?.startsWith('/verify/') ?? false) {
+          final documentId = settings.name!.split('/').last;
+          return MaterialPageRoute(
+            builder: (context) => VerifyDocumentPage(documentId: documentId),
+          );
+        }
+        
         if (settings.name == '/ormawa_beranda') {
           final args = settings.arguments as Map<String, dynamic>;
           return MaterialPageRoute(

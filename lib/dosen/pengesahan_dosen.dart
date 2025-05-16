@@ -560,7 +560,9 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
       if (!mounted) return;
       
       if (response['success'] && response['data'] != null) {
-        String base64Pdf = response['data'];
+        // Convert bytes to base64
+        final bytes = response['data'] as List<int>;
+        final base64Pdf = base64Encode(bytes);
         
         // Navigasi ke QR Code Page
         final result = await Navigator.push(
