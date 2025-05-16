@@ -43,39 +43,76 @@ class _QrCodePageState extends State<QrCodePage> {
   Future<void> _saveQrPosition() async {
     setState(() => _isLoading = true);
     try {
-      // First create a PNG image from the QR code
-      final qrImage = await _captureQrCodeAsPng();
-      if (qrImage == null) {
-        throw Exception('Gagal membuat gambar QR code');
-      }
+      // Set QR size to the smallest value for better compatibility
+      setState(() {
+        _qrSize = 80.0;
+      });
 
-      // Convert bytes to base64 string
-      final qrBase64 = base64Encode(qrImage);
+      // Allow UI to update with new size
+      await Future.delayed(const Duration(milliseconds: 100));
 
-      final position = {
-        'x': _qrPosition.dx,
-        'y': _qrPosition.dy,
-        'page': _currentPage,
-        'size': _qrSize,
-        'qr_image': qrBase64, // Send the QR code image
-      };
+      // Get position values and ensure they are properly formatted as strings
+      final x = _qrPosition.dx.toString().trim();
+      final y = _qrPosition.dy.toString().trim();
+      final page = _currentPage.toString().trim();
+      final size = _qrSize.toString().trim();
 
-      final result = await _documentService.addQrCode(widget.documentId, position);
+      print('Attempting to save QR code with position: x=$x, y=$y, page=$page, size=$size');
+
+      // Maximum retry attempts
+      const maxRetries = 3;
+      Exception? lastError;
       
-      if (result['success']) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('QR Code berhasil ditambahkan')),
+      // Try multiple times with decreasing QR sizes if needed
+      for (int attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          // Decrease size on each retry to improve chances of success
+          if (attempt > 0) {
+            final newSize = max(80.0, _qrSize - (attempt * 10.0));
+            setState(() => _qrSize = newSize);
+            await Future.delayed(const Duration(milliseconds: 100));
+            print('Retry #${attempt+1}: Trying with smaller QR size: $_qrSize');
+          }
+          
+          // Use the specialized method that handles data_qr field
+          final result = await _documentService.approveDocumentWithQrData(
+            widget.documentId, x, y, page, _qrSize.toString().trim()
           );
-          Navigator.pop(context, true);
+          
+          if (result['success'] == true) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('QR Code berhasil ditambahkan')),
+              );
+              Navigator.pop(context, true);
+            }
+            return;
+          } else {
+            lastError = Exception(result['message'] ?? 'Gagal menyimpan QR Code');
+            print('Save attempt ${attempt+1} failed: ${result['message']}');
+          }
+        } catch (e) {
+          lastError = e is Exception ? e : Exception(e.toString());
+          print('Error in save attempt ${attempt+1}: $e');
         }
-      } else {
-        throw Exception(result['message']);
       }
+      
+      // If we get here, all attempts failed
+      throw lastError ?? Exception('Gagal menyimpan QR Code setelah beberapa percobaan');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal menyimpan QR Code: $e')),
+          SnackBar(
+            content: Text('Gagal menyimpan QR Code: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 10),
+            action: SnackBarAction(
+              label: 'Coba Lagi',
+              onPressed: () {
+                _saveQrPosition();
+              },
+            ),
+          ),
         );
       }
     } finally {
@@ -83,16 +120,26 @@ class _QrCodePageState extends State<QrCodePage> {
     }
   }
 
-  // Capture QR code as PNG bytes
+  // Capture QR code as PNG bytes with optimized small size
   Future<Uint8List?> _captureQrCodeAsPng() async {
     try {
       final boundary = _qrKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) return null;
       
-      final image = await boundary.toImage(pixelRatio: 3.0);
+      // Use the smallest possible pixel ratio to reduce file size
+      final pixelRatio = 1.0;
+      
+      final image = await boundary.toImage(pixelRatio: pixelRatio);
+      
+      // Use lowest quality PNG format
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       
-      return byteData?.buffer.asUint8List();
+      if (byteData == null) return null;
+      
+      final bytes = byteData.buffer.asUint8List();
+      print('QR image size: ${bytes.length} bytes');
+      
+      return bytes;
     } catch (e) {
       print('Error capturing QR code: $e');
       return null;
@@ -300,6 +347,14 @@ class _QrCodePageState extends State<QrCodePage> {
           version: QrVersions.auto,
           size: _qrSize - 16,
           backgroundColor: Colors.white,
+          // Use lower error correction level for smaller file size
+          errorCorrectionLevel: QrErrorCorrectLevel.L,
+          // Add padding for better scanning
+          padding: const EdgeInsets.all(0),
+          // Use embeddedImage to add extra visual protection against server errors
+          embeddedImageStyle: const QrEmbeddedImageStyle(
+            size: Size(0, 0), // No embedded image for better compatibility
+          ),
           errorStateBuilder: (context, error) {
             return const Center(
               child: Text(

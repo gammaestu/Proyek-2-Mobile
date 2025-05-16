@@ -76,44 +76,57 @@ class _QrPlacementPageState extends State<QrPlacementPage> {
         return;
       }
 
-      // First create a PNG image from the QR code
-      final qrImage = await _captureQrCodeAsPng();
-      if (qrImage == null) {
-        throw Exception('Gagal membuat gambar QR code');
+      // Use minimal QR size for better compatibility
+      setState(() {
+        _qrSize = 80.0;
+      });
+      
+      // Allow UI to update with new size
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // Get position values
+      final x = _qrPosition.dx.toString();
+      final y = _qrPosition.dy.toString();
+      final page = _currentPage.toString();
+      final size = _qrSize.toString();
+      
+      // Try with our specialized method that handles data_qr field
+      final result = await _documentService.approveDocumentWithQrData(
+        widget.documentId, x, y, page, size
+      );
+      
+      if (result['success'] == true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Dokumen berhasil disahkan'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.of(context).pop(true);
+        }
+        return;
       }
-
-      // Convert bytes to base64 string
-      final qrBase64 = base64Encode(qrImage);
-
-      final position = {
-        'x': _qrPosition.dx,
-        'y': _qrPosition.dy,
-        'page': _currentPage,
-        'size': _qrSize,
-        'qr_image': qrBase64, // Send the QR code image
-      };
-
-      final result = await _documentService.addQrCode(widget.documentId, position);
-
-      if (!mounted) return;
-
-      if (result['success']) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Dokumen berhasil disahkan'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.of(context).pop(true); // Return true to indicate success
-      } else {
-        throw Exception(result['message']);
-      }
+      
+      // If that failed, show error
+      throw Exception('Gagal mengesahkan dokumen. ${result['message']}');
+      
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Gagal mengesahkan dokumen: $e'),
             backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Coba Lagi',
+              onPressed: () {
+                // Try again with smallest QR size
+                setState(() {
+                  _qrSize = 80.0;
+                });
+                _approveDocument();
+              },
+            ),
           ),
         );
       }
@@ -122,16 +135,26 @@ class _QrPlacementPageState extends State<QrPlacementPage> {
     }
   }
 
-  // Capture QR code as PNG bytes
+  // Capture QR code as PNG bytes with optimized small size
   Future<Uint8List?> _captureQrCodeAsPng() async {
     try {
       final boundary = _qrKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) return null;
       
-      final image = await boundary.toImage(pixelRatio: 3.0);
+      // Use the smallest possible pixel ratio to reduce file size
+      final pixelRatio = 1.0;
+      
+      final image = await boundary.toImage(pixelRatio: pixelRatio);
+      
+      // Use lowest quality PNG format
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       
-      return byteData?.buffer.asUint8List();
+      if (byteData == null) return null;
+      
+      final bytes = byteData.buffer.asUint8List();
+      print('QR image size: ${bytes.length} bytes');
+      
+      return bytes;
     } catch (e) {
       print('Error capturing QR code: $e');
       return null;
