@@ -95,9 +95,11 @@ class _OrmawaPengajuanPageState extends State<OrmawaPengajuanPage> {
   Future<void> _pickFile() async {
     try {
       final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'doc', 'docx'],
-        withData: true, // This ensures we get the file bytes
+        // Ubah type menjadi any agar bisa memilih semua file
+        type: FileType.any,
+        // Hapus allowedExtensions karena kita akan filter manual
+        allowMultiple: false,
+        withData: true,
       );
 
       if (result != null) {
@@ -109,6 +111,19 @@ class _OrmawaPengajuanPageState extends State<OrmawaPengajuanPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Ukuran file tidak boleh lebih dari 10MB'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
+        // Check file extension
+        final extension = file.extension?.toLowerCase() ?? '';
+        if (extension != 'pdf') {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Hanya file PDF yang diperbolehkan'),
               backgroundColor: Colors.red,
             ),
           );
@@ -421,7 +436,20 @@ class _OrmawaPengajuanPageState extends State<OrmawaPengajuanPage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Unggah Dokumen'),
+                  const Text(
+                    'Unggah Dokumen',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Format yang diizinkan: PDF (Maks. 10MB)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -433,11 +461,17 @@ class _OrmawaPengajuanPageState extends State<OrmawaPengajuanPage> {
                                 ? Colors.black
                                 : Colors.grey,
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      ElevatedButton(
+                      ElevatedButton.icon(
                         onPressed: _pickFile,
-                        child: const Text('Pilih File'),
+                        icon: const Icon(Icons.upload_file),
+                        label: const Text('Pilih PDF'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                        ),
                       ),
                     ],
                   ),

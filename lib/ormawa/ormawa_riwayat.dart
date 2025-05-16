@@ -402,8 +402,9 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
                                 : () async {
                                     final result =
                                         await FilePicker.platform.pickFiles(
-                                      type: FileType.custom,
-                                      allowedExtensions: ['pdf', 'doc', 'docx'],
+                                      type: FileType.any,
+        // Hapus allowedExtensions karena kita akan filter manual
+                                      allowMultiple: false,
                                       withData: true,
                                     );
                                     if (result != null &&

@@ -165,7 +165,7 @@ class DocumentService {
         return 'http://10.0.2.2:8000/api';
       }
       // Untuk device fisik, gunakan IP komputer Anda
-      return 'http://192.168.43.103:8000/api'; // Ganti dengan IP komputer Anda
+      return 'http://10.0.143.5:8000/api'; // Ganti dengan IP komputer Anda
     }
     return 'http://localhost:8000/api';
   }

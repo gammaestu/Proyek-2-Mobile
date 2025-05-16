@@ -12,7 +12,7 @@ class AuthService {
 
   // Base URL untuk API - bisa diubah sesuai kebutuhan
   static const String _defaultBaseUrl =
-      'http://192.168.43.103:8000'; // Sesuaikan dengan IP laptop Anda
+      'http://10.0.143.5:8000'; // Sesuaikan dengan IP laptop Anda
   static String? _customBaseUrl; // Untuk menyimpan URL kustom
 
   // Tambahkan timeout yang lebih lama
