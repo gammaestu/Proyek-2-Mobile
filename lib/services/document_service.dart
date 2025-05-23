@@ -165,7 +165,7 @@ class DocumentService {
         return 'http://10.0.2.2:8000/api';
       }
       // Untuk device fisik, gunakan IP komputer Anda
-      return 'http://10.0.143.5:8000/api'; // Ganti dengan IP komputer Anda
+      return 'http://192.168.1.13:8000/api'; // Ganti dengan IP komputer Anda
     }
     return 'http://localhost:8000/api';
   }
@@ -1068,41 +1068,53 @@ class DocumentService {
   Future<Map<String, dynamic>> addQrCode(String documentId, Map<String, dynamic> position) async {
     try {
       final token = await _authService.getToken();
-      print('Adding QR Code for document: $documentId');
-      
-      // Debug log for position data
-      print('Raw position data received: $position');
-      
       if (token == null) {
-        return {
-          'success': false,
-          'message': 'Token tidak ditemukan',
-        };
+        return {'success': false, 'message': 'Token tidak ditemukan'};
       }
 
-      // Extract values and delegate to the new method
-      final x = (position['x'] ?? '0').toString();
-      final y = (position['y'] ?? '0').toString();
-      final page = (position['page'] ?? '1').toString();
-      final size = (position['size'] ?? '100').toString();
+      final baseUrl = getBaseUrl();
+      final url = Uri.parse('$baseUrl/dosen/documents/$documentId/approve');
       
-      // If we have QR image data, extract it
-      String? qrImage;
-      if (position.containsKey('qr_image')) {
-        qrImage = position['qr_image'].toString();
-        print('QR image data included (length: ${qrImage.length})');
-      } else {
-        print('No QR image data included');
-      }
-      
-      // Use the new method
-      return await approveDocument(documentId, x, y, page, size, qrImage);
-    } catch (e) {
-      print('Error adding QR Code: $e');
-      return {
-        'success': false,
-        'message': 'Error: ${e.toString()}',
+      // Create verification URL for QR code
+      final verificationUrl = '$baseUrl/verify/$documentId';
+
+      // Format position data correctly
+      final requestData = {
+        'qr_position_x': position['x'].toString(),
+        'qr_position_y': position['y'].toString(),
+        'qr_position_page': (position['page'] ?? 1).toString(),
+        'qr_position_size': position['size'].toString(),
+        'data_qr': verificationUrl,
       };
+
+      print('Sending request to: $url');
+      print('Request data: $requestData');
+
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: requestData,
+      );
+
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {'success': true, 'message': 'QR Code berhasil ditambahkan'};
+      }
+
+      final errorMsg = response.body.isNotEmpty 
+          ? jsonDecode(response.body)['message'] 
+          : 'Gagal menambahkan QR Code';
+      return {'success': false, 'message': errorMsg};
+
+    } catch (e) {
+      print('Error in addQrCode: $e');
+      return {'success': false, 'message': e.toString()};
     }
   }
 }

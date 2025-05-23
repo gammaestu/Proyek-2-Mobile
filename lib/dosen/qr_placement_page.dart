@@ -92,7 +92,7 @@ class _QrPlacementPageState extends State<QrPlacementPage> {
       
       // Try with our specialized method that handles data_qr field
       final result = await _documentService.approveDocumentWithQrData(
-        widget.documentId, x, y, page, size
+        widget.documentId, x, y, page, size,
       );
       
       if (result['success'] == true) {
