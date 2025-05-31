@@ -165,7 +165,7 @@ class DocumentService {
         return 'http://10.0.2.2:8000/api';
       }
       // Untuk device fisik, gunakan IP komputer Anda
-      return 'http://192.168.1.13:8000/api'; // Ganti dengan IP komputer Anda
+      return 'http://192.168.1.16:8000/api'; // Ganti dengan IP komputer Anda
     }
     return 'http://localhost:8000/api';
   }
@@ -1117,4 +1117,126 @@ class DocumentService {
       return {'success': false, 'message': e.toString()};
     }
   }
+
+  Future<Map<String, dynamic>> generateQrCodeForDocument(String documentId) async {
+    try {
+      await _setupDio();
+      print('Generating QR code for document: $documentId'); // Debug log
+      
+      final response = await _dio.post(
+        '/dosen/dokumen/$documentId/generate-qr',
+        options: Options(
+          validateStatus: (status) => true, // Accept all status codes for debugging
+        ),
+      );
+
+      print('Generate QR response status: ${response.statusCode}'); // Debug log
+      print('Generate QR response data: ${response.data}'); // Debug log
+
+      if (response.statusCode == 200) {
+        if (response.data['success'] == true) {
+          return {
+            'success': true,
+            'qr_code_url': response.data['qr_code_url'],
+            'message': response.data['message'] ?? 'Kode QR berhasil dibuat.',
+          };
+        } else {
+          return {
+            'success': false,
+            'message': response.data['message'] ?? 'Server mengembalikan status error.',
+          };
+        }
+      } else {
+        final message = response.data is Map ? 
+          response.data['message'] ?? 'Gagal membuat kode QR (${response.statusCode})' :
+          'Gagal membuat kode QR (${response.statusCode})';
+        return {
+          'success': false,
+          'message': message,
+        };
+      }
+    } catch (e) {
+      print('Error in generateQrCodeForDocument: $e'); // Debug log
+      return {
+        'success': false,
+        'message': 'Terjadi kesalahan saat membuat kode QR: ${e.toString()}',
+      };
+    }
+  }
+
+  // Fungsi untuk mengirim informasi penempatan QR ke server agar ditempelkan ke PDF
+  Future<Map<String, dynamic>> embedQrCodeOnDocument({
+    required String documentId,
+    required double xPercent,
+    required double yPercent,
+    required double widthPercent,
+    required double heightPercent,
+    required int pageNumber,
+  }) async {
+    try {
+      await _setupDio();
+      
+      // Format data sesuai dengan ekspektasi backend
+      final Map<String, dynamic> payload = {
+        'x_percent': xPercent,
+        'y_percent': yPercent,
+        'width_percent': widthPercent,
+        'height_percent': heightPercent,
+        'page_number': pageNumber,
+        'qr_data': {
+          'url': getVerificationUrl(documentId),
+        },
+        'document_id': documentId,
+      };
+
+      print('Embedding QR code for document: $documentId'); // Debug log
+      print('Payload: $payload'); // Debug log
+
+      final response = await _dio.post(
+        '/dosen/dokumen/$documentId/embed-qr', 
+        data: payload,
+        options: Options(
+          validateStatus: (status) => true,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Embed QR response status: ${response.statusCode}'); // Debug log
+      print('Embed QR response data: ${response.data}'); // Debug log
+
+      if (response.statusCode == 200) {
+        if (response.data['success'] == true) {
+          return {
+            'success': true,
+            'message': response.data['message'] ?? 'QR Code berhasil ditempelkan',
+            'signed_document_url': response.data['signed_document_url'],
+          };
+        } else {
+          return {
+            'success': false,
+            'message': response.data['message'] ?? 'Server mengembalikan status error',
+          };
+        }
+      } else {
+        String errorMsg = 'Gagal menempelkan QR Code';
+        if (response.data is Map && response.data['message'] != null) {
+          errorMsg = response.data['message'];
+        }
+        return {
+          'success': false,
+          'message': '$errorMsg (${response.statusCode})',
+        };
+      }
+    } catch (e) {
+      print('Error in embedQrCodeOnDocument: $e'); // Debug log
+      return {
+        'success': false,
+        'message': 'Terjadi kesalahan saat menempelkan QR Code: ${e.toString()}',
+      };
+    }
+  }
+
 }

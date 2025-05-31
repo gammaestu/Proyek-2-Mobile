@@ -5,15 +5,10 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../services/document_service.dart';
-import 'qr_code_page.dart';
-import 'pdf_viewer_page.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:universal_html/html.dart' as html;
-import 'package:fluttertoast/fluttertoast.dart';
+import 'dart:math' show min;
 import 'package:open_file/open_file.dart';
-import 'dart:math';
 import '../services/auth_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
@@ -107,135 +102,245 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
              status == _selectedStatusFilter.toLowerCase();
     }).toList();
   }
-
   void _showDocumentDetail(BuildContext context, Map<String, dynamic> document) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Detail Dokumen'),
-        content: SingleChildScrollView(
+      builder: (dialogContext) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.95,
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+          ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Nomor Surat : ${document['nomor_surat'] ?? '-'}'),
-              Text('Perihal : ${document['hal'] ?? '-'}'),
-              Text('Status: ${document['status'] ?? '-'}'), // Gunakan kunci status
-              Text('Pengaju: ${document['namaMahasiswa'] ?? '-'}'),
-              if (document['keterangan'] != null)
-                Text('Keterangan: ${document['keterangan']}'),
-              Text('Tanggal Pengajuan: ${document['tanggal_pengajuan'] ?? '-'}'),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 100,
-                    child: ElevatedButton(
-                      onPressed: () => _viewDocument(document['id'].toString()),
-                      child: const Text('Lihat'),
+              // Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
                     ),
-                  ),
-                  SizedBox(
-                    width: 100,
-                    child: ElevatedButton(
-                      onPressed: () => _markForRevision(document['id'].toString()),
-                      child: const Text('Revisi'),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 100,
-                    child: ElevatedButton(
-                      onPressed: () => _downloadDocument(document['id']),
-                      child: const Text('Download'),
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      // Close detail dialog first
-                      Navigator.pop(dialogContext);
-
-                      // Show loading indicator in a separate dialog
-                      BuildContext? loadingContext;
-                      showDialog(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (ctx) {
-                          loadingContext = ctx;
-                          return const Center(child: CircularProgressIndicator());
-                        },
-                      );
-
-                      try {
-                        final response = await _documentService.getDocumentFile(
-                          document['id'].toString(),
-                          role: 'dosen'
-                        );
-
-                        // Close loading dialog safely
-                        if (loadingContext != null && Navigator.canPop(loadingContext!)) {
-                          Navigator.pop(loadingContext!);
-                        }
-
-                        if (response['success'] && response['data'] != null) {
-                          if (!mounted) return;
-
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => QrPlacementPage(
-                                documentId: document['id'].toString(),
-                                pdfBytes: response['data'],
-                                fileName: 'Dokumen #${document['id']}',
-                              ),
-                            ),
-                          );
-
-                          // Refresh documents list if needed
-                          if (mounted) {
-                            await _fetchDocuments();
-                          }
-                        } else {
-                          throw Exception(response['message'] ?? 'Gagal memuat dokumen');
-                        }
-                      } catch (e) {
-                        // Close loading dialog if still showing
-                        if (loadingContext != null && Navigator.canPop(loadingContext!)) {
-                          Navigator.pop(loadingContext!);
-                        }
-
-                        if (!mounted) return;
-
-                        // Show error message
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error: ${e.toString()}'),
-                            backgroundColor: Colors.red,
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.qr_code),
-                    label: const Text('QR Code'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
+                          child: const Icon(
+                            Icons.description_outlined,
+                            color: Colors.blue,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Detail Dokumen',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(dialogContext),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.grey.withOpacity(0.1),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
+              
+              // Content
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Document Info Card
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[200]!),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildDetailRow('Nomor Surat', document['nomor_surat'] ?? '-'),
+                            const SizedBox(height: 12),
+                            _buildDetailRow('Perihal', document['hal'] ?? '-'),
+                            const SizedBox(height: 12),
+                            _buildDetailRow(
+                              'Status',
+                              document['status']?.toString().toUpperCase() ?? '-',
+                              valueColor: _getStatusColor(document['status']),
+                            ),
+                            const SizedBox(height: 12),
+                            _buildDetailRow('Pengaju', document['namaMahasiswa'] ?? '-'),
+                            if (document['keterangan'] != null) ...[
+                              const SizedBox(height: 12),
+                              _buildDetailRow('Keterangan', document['keterangan']),
+                            ],
+                            const SizedBox(height: 12),
+                            _buildDetailRow('Tanggal Pengajuan', document['tanggal_pengajuan'] ?? '-'),
+                          ],
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Action Buttons
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              Expanded(
+                                child: _buildActionButton(
+                                  icon: Icons.visibility_outlined,
+                                  label: 'Lihat',
+                                  color: Colors.blue,
+                                  onPressed: () => _viewDocument(document['id'].toString()),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildActionButton(
+                                  icon: Icons.edit_note_outlined,
+                                  label: 'Revisi',
+                                  color: Colors.orange,
+                                  onPressed: () => _markForRevision(document['id'].toString()),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              Expanded(
+                                child: _buildActionButton(
+                                  icon: Icons.download_outlined,
+                                  label: 'Download',
+                                  color: Colors.green,
+                                  onPressed: () => _downloadDocument(document['id']),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildActionButton(
+                                  icon: Icons.qr_code_rounded,
+                                  label: 'Bubuhkan QR',
+                                  color: Colors.blueAccent,
+                                  onPressed: () async {
+                                    Navigator.pop(dialogContext);
+                                    // Tampilkan dialog loading
+                                    BuildContext? loadingDialogCtx;
+                                    showDialog(
+                                      context: context,
+                                      barrierDismissible: false,
+                                      builder: (ctx) {
+                                        loadingDialogCtx = ctx;
+                                        return const Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.blueAccent)));
+                                      },
+                                    );
+
+                                    try {
+                                      final String docId = document['id'].toString();
+
+                                      // 1. Minta URL gambar QR dari server
+                                      final qrResult = await _documentService.generateQrCodeForDocument(docId);
+
+                                      if (!qrResult['success']) { // Jika gagal membuat QR
+                                        throw Exception(qrResult['message'] ?? 'Gagal membuat QR Code');
+                                      }
+                                      final String qrImageUrl = qrResult['qr_code_url']; // Ambil URL gambar QR
+
+                                      // 2. Ambil data byte dari file PDF
+                                      final pdfResponse = await _documentService.getDocumentFile(docId, role: 'dosen');
+                                      if (!pdfResponse['success'] || pdfResponse['data'] == null) {
+                                        throw Exception(pdfResponse['message'] ?? 'Gagal memuat file PDF');
+                                      }
+                                      final Uint8List pdfBytes = pdfResponse['data'];
+
+                                      // Tutup dialog loading dengan aman
+                                      if (loadingDialogCtx != null && Navigator.canPop(loadingDialogCtx!)) {
+                                        Navigator.pop(loadingDialogCtx!);
+                                      }
+                                      loadingDialogCtx = null;
+
+                                      if (!mounted) return;
+
+                                      // 3. Pindah ke halaman QrPlacementPage
+                                      final placementResult = await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => QrPlacementPage(
+                                            documentId: docId,
+                                            pdfBytes: pdfBytes,
+                                            qrImageUrl: qrImageUrl,
+                                            fileName: 'Dokumen #${document['nomor_surat'] ?? docId}',
+                                          ),
+                                        ),
+                                      );
+
+                                      if (placementResult == true) {
+                                        _fetchDocuments();
+                                        _showMessage('Dokumen berhasil disahkan dengan Kode QR.');
+                                      }
+                                    } catch (e) {
+                                      print("Error pada alur Kode QR: $e");
+                                      if (loadingDialogCtx != null && Navigator.canPop(loadingDialogCtx!)) {
+                                        Navigator.pop(loadingDialogCtx!);
+                                      }
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Error: ${e.toString()}')),
+                                        );
+                                      }
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Tutup'),
-          ),
-        ],
       ),
     );
   }
@@ -534,64 +639,53 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
     }
   }
 
-  void _showToast(String fileName, String filePath) {
-    Fluttertoast.showToast(
-      msg: 'File $fileName berhasil diunduh',
-      toastLength: Toast.LENGTH_LONG,
-      gravity: ToastGravity.BOTTOM,
-      timeInSecForIosWeb: 3,
-      backgroundColor: Colors.green,
-      textColor: Colors.white,
-      fontSize: 16.0,
-    );
-  }
 
-  Future<void> _addQrCode(dynamic documentId) async {
-    try {
-      setState(() => _isLoading = true);
+  // Future<void> _addQrCode(dynamic documentId) async {
+  //   try {
+  //     setState(() => _isLoading = true);
       
-      // Konversi documentId ke String
-      final String docId = documentId.toString();
+  //     // Konversi documentId ke String
+  //     final String docId = documentId.toString();
       
-      // Ambil file PDF terlebih dahulu
-      final response = await _documentService.getDocumentFile(docId);
-      print('Response from getDocumentFile: $response'); // Debug print
+  //     // Ambil file PDF terlebih dahulu
+  //     final response = await _documentService.getDocumentFile(docId);
+  //     print('Response from getDocumentFile: $response'); // Debug print
       
-      if (!mounted) return;
+  //     if (!mounted) return;
       
-      if (response['success'] && response['data'] != null) {
-        // Convert bytes to base64
-        final bytes = response['data'] as List<int>;
-        final base64Pdf = base64Encode(bytes);
+  //     if (response['success'] && response['data'] != null) {
+  //       // Convert bytes to base64
+  //       final bytes = response['data'] as List<int>;
+  //       final base64Pdf = base64Encode(bytes);
         
-        // Navigasi ke QR Code Page
-        final result = await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => QrCodePage(
-              documentId: docId,
-              base64Pdf: base64Pdf,
-            ),
-          ),
-        );
+  //       // Navigasi ke QR Code Page
+  //       final result = await Navigator.push(
+  //         context,
+  //         MaterialPageRoute(
+  //           builder: (context) => QrCodePage(
+  //             documentId: docId,
+  //             base64Pdf: base64Pdf,
+  //           ),
+  //         ),
+  //       );
 
-        // Handle result dari QR Code Page
-        if (result == true) {
-          await _fetchDocuments(); // Refresh dokumen
-          _showMessage('QR Code berhasil ditambahkan');
-        }
-      } else {
-        throw Exception(response['message'] ?? 'Gagal mengambil file dokumen');
-      }
-    } catch (e) {
-      print('Error dalam _addQrCode: $e');
-      _showMessage('Error: ${e.toString()}');
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
+  //       // Handle result dari QR Code Page
+  //       if (result == true) {
+  //         await _fetchDocuments(); // Refresh dokumen
+  //         _showMessage('QR Code berhasil ditambahkan');
+  //       }
+  //     } else {
+  //       throw Exception(response['message'] ?? 'Gagal mengambil file dokumen');
+  //     }
+  //   } catch (e) {
+  //     print('Error dalam _addQrCode: $e');
+  //     _showMessage('Error: ${e.toString()}');
+  //   } finally {
+  //     if (mounted) {
+  //       setState(() => _isLoading = false);
+  //     }
+  //   }
+  // }
 
   void _showMessage(String message) {
     if (mounted) {
@@ -608,6 +702,79 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
         )
       );
     }
+  }
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      height: 44,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, color: Colors.white, size: 20),
+        label: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        ),
+      ),
+    );
+  }  Widget _buildDetailRow(String label, String value, {Color? valueColor}) {
+    // Mengatur width label berdasarkan panjang labelnya
+    final double labelWidth = label == 'Tanggal Pengajuan' ? 130 : 85;
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: labelWidth,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey[700],
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Text(
+            ': ',
+            style: TextStyle(
+              color: Colors.grey[700],
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: valueColor ?? Colors.black87,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

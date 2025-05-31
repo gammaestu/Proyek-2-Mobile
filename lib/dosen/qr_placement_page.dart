@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../services/document_service.dart';
+import '../services/auth_service.dart';
 import 'dart:typed_data';
-import 'package:qr_flutter/qr_flutter.dart';
-import 'dart:ui' as ui;
-import 'package:flutter/rendering.dart';
-import 'dart:convert';
-import 'dart:math';
+// import 'package:qr_flutter/qr_flutter.dart';
+// import 'dart:ui' as ui;
+// import 'package:flutter/rendering.dart';
+
 
 class QrPlacementPage extends StatefulWidget {
   final String documentId;
-  final Uint8List pdfBytes;
+  final Uint8List pdfBytes; // Data PDF
+  final String qrImageUrl;   // URL gambar QR dari server (BARU)
   final String fileName;
 
   const QrPlacementPage({
     Key? key,
     required this.documentId,
     required this.pdfBytes,
+    required this.qrImageUrl, // Parameter baru
     required this.fileName,
   }) : super(key: key);
 
@@ -26,138 +28,135 @@ class QrPlacementPage extends StatefulWidget {
 
 class _QrPlacementPageState extends State<QrPlacementPage> {
   final DocumentService _documentService = DocumentService();
-  Offset _qrPosition = const Offset(100, 100);
-  int _currentPage = 1;
+  final AuthService _authService = AuthService();
+  
+  // Posisi QR dalam piksel di layar
+  Offset _qrScreenPosition = const Offset(50, 50);
+  // Ukuran QR dalam piksel di layar
+  double _qrScreenSize = 100.0;
+  String? _fullQrUrl;
+
+  int _currentPageNumber = 1; // `onPageChanged` di SfPdfViewer menggunakan basis 1
   bool _isLoading = false;
-  bool _isDragging = false;
   late PdfViewerController _pdfViewerController;
-  double _qrSize = 120.0; // Default QR code size
-  bool _isResizing = false;
-  GlobalKey _qrKey = GlobalKey();
+  GlobalKey _pdfViewerKey = GlobalKey(); // Kunci untuk mendapatkan ukuran area PDF viewer
 
   @override
   void initState() {
     super.initState();
     _pdfViewerController = PdfViewerController();
+    _setupQrUrl();
+    // Atur posisi awal QR, misalnya di tengah atau pojok
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _pdfViewerKey.currentContext != null) {
+        final RenderBox pdfArea = _pdfViewerKey.currentContext!.findRenderObject() as RenderBox;
+         setState(() {
+           _qrScreenPosition = Offset(
+             pdfArea.size.width * 0.1,  // Mulai dari 10% dari kiri
+             pdfArea.size.height * 0.7, // Mulai dari 70% dari atas (agak ke bawah)
+           );
+         });
+      } else {
+         // Posisi default jika ukuran area belum diketahui
+         _qrScreenPosition = const Offset(30, 30);
+      }
+    });
   }
 
-  Future<void> _approveDocument() async {
+  void _setupQrUrl() {
+    if (widget.qrImageUrl.startsWith('http')) {
+      _fullQrUrl = widget.qrImageUrl;
+    } else {
+      final baseUrl = DocumentService.getBaseUrl().replaceAll('/api', '');
+      _fullQrUrl = '$baseUrl/storage/${widget.qrImageUrl.replaceAll('/storage/', '')}';
+    }
+    print('Full QR URL: $_fullQrUrl'); // Debug print
+  }
+
+  // Fungsi untuk mengirim data penempatan QR ke server
+  Future<void> _approveDocumentAndEmbedQr() async {
+    if (_pdfViewerKey.currentContext == null) {
+       ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Area PDF Viewer belum siap. Mohon tunggu.')),
+      );
+      return;
+    }
+
+    // Dapatkan ukuran area tempat PDF ditampilkan (dalam piksel)
+    final RenderBox pdfAreaRenderBox = _pdfViewerKey.currentContext!.findRenderObject() as RenderBox;
+    final Size pdfViewAreaSize = pdfAreaRenderBox.size;
+
+    if (pdfViewAreaSize.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tidak dapat menentukan ukuran area tampilan PDF.')),
+      );
+      return;
+    }
+
+    // Hitung posisi dan ukuran QR dalam bentuk persentase relatif terhadap area tampilan PDF
+    final double xPercent = (_qrScreenPosition.dx / pdfViewAreaSize.width) * 100;
+    final double yPercent = (_qrScreenPosition.dy / pdfViewAreaSize.height) * 100;
+    final double widthPercent = (_qrScreenSize / pdfViewAreaSize.width) * 100;
+    final double heightPercent = (_qrScreenSize / pdfViewAreaSize.width) * 100;
+
+    // Pastikan nilai persentase valid (0-100, lebar/tinggi > 0)
+    final clampedXPercent = xPercent.clamp(0.0, 100.0 - widthPercent.clamp(1.0,100.0));
+    final clampedYPercent = yPercent.clamp(0.0, 100.0 - heightPercent.clamp(1.0,100.0));
+    final clampedWidthPercent = widthPercent.clamp(1.0, 100.0);
+    final clampedHeightPercent = heightPercent.clamp(1.0, 100.0);
+
+    // Dialog konfirmasi
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Konfirmasi'),
+        content: const Text('Anda yakin ingin mengesahkan dokumen dengan posisi QR code ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Ya'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+
     try {
-      setState(() => _isLoading = true);
-
-      // Show confirmation dialog
-      final confirm = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Konfirmasi Pengesahan'),
-          content: const Text(
-            'Dokumen akan ditandatangani dengan QR Code pada posisi yang dipilih. '
-            'Status dokumen akan berubah menjadi "Disahkan".\n\n'
-            'Apakah Anda yakin?'
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-              ),
-              child: const Text('Ya, Sahkan'),
-            ),
-          ],
-        ),
+      // Panggil API untuk menempelkan QR code dan mengesahkan dokumen
+      final result = await _documentService.embedQrCodeOnDocument(
+        documentId: widget.documentId,
+        xPercent: clampedXPercent,
+        yPercent: clampedYPercent,
+        widthPercent: clampedWidthPercent,
+        heightPercent: clampedHeightPercent,
+        pageNumber: _currentPageNumber,
       );
 
-      if (confirm != true) {
-        setState(() => _isLoading = false);
-        return;
-      }
+      if (!mounted) return;
+      setState(() => _isLoading = false);
 
-      // Use minimal QR size for better compatibility
-      setState(() {
-        _qrSize = 80.0;
-      });
-      
-      // Allow UI to update with new size
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      // Get position values
-      final x = _qrPosition.dx.toString();
-      final y = _qrPosition.dy.toString();
-      final page = _currentPage.toString();
-      final size = _qrSize.toString();
-      
-      // Try with our specialized method that handles data_qr field
-      final result = await _documentService.approveDocumentWithQrData(
-        widget.documentId, x, y, page, size,
-      );
-      
       if (result['success'] == true) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Dokumen berhasil disahkan'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          Navigator.of(context).pop(true);
-        }
-        return;
-      }
-      
-      // If that failed, show error
-      throw Exception('Gagal mengesahkan dokumen. ${result['message']}');
-      
-    } catch (e) {
-      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal mengesahkan dokumen: $e'),
-            backgroundColor: Colors.red,
-            action: SnackBarAction(
-              label: 'Coba Lagi',
-              onPressed: () {
-                // Try again with smallest QR size
-                setState(() {
-                  _qrSize = 80.0;
-                });
-                _approveDocument();
-              },
-            ),
-          ),
+          const SnackBar(content: Text('Dokumen berhasil disahkan')),
+        );
+        Navigator.pop(context, true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['message'] ?? 'Terjadi kesalahan saat mengesahkan dokumen')),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  // Capture QR code as PNG bytes with optimized small size
-  Future<Uint8List?> _captureQrCodeAsPng() async {
-    try {
-      final boundary = _qrKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      if (boundary == null) return null;
-      
-      // Use the smallest possible pixel ratio to reduce file size
-      final pixelRatio = 1.0;
-      
-      final image = await boundary.toImage(pixelRatio: pixelRatio);
-      
-      // Use lowest quality PNG format
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      
-      if (byteData == null) return null;
-      
-      final bytes = byteData.buffer.asUint8List();
-      print('QR image size: ${bytes.length} bytes');
-      
-      return bytes;
     } catch (e) {
-      print('Error capturing QR code: $e');
-      return null;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
     }
   }
 
@@ -167,208 +166,162 @@ class _QrPlacementPageState extends State<QrPlacementPage> {
       appBar: AppBar(
         title: Text('Pengesahan - ${widget.fileName}'),
         actions: [
-          ElevatedButton.icon(
-            onPressed: _isLoading ? null : _approveDocument,
-            icon: _isLoading 
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.blue,
-                  ),
-                )
-              : const Icon(Icons.check_circle, color: Colors.blue),
-            label: Text(
-              _isLoading ? 'Memproses...' : 'Sahkan',
-              style: const TextStyle(
-                color: Colors.blue,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              elevation: 2,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
+          TextButton.icon(
+            onPressed: _isLoading ? null : _approveDocumentAndEmbedQr, // Panggil fungsi yang benar
+            icon: _isLoading
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.0, valueColor: AlwaysStoppedAnimation<Color>(Colors.blueAccent)))
+                : const Icon(Icons.check_circle_outline, color: Colors.blueAccent),
+            label: Text(_isLoading ? 'Memproses...' : 'Sahkan', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+            style: TextButton.styleFrom(padding: EdgeInsets.symmetric(horizontal: 16)),
           ),
-          const SizedBox(width: 8), // Add padding at the end
         ],
       ),
-      body: GestureDetector(
-        // Allow tapping anywhere on screen to place QR code
-        onTapDown: (details) {
-          if (!_isDragging && !_isResizing) {
-            setState(() {
-              _qrPosition = details.localPosition;
-            });
-          }
-        },
-        child: Stack(
-          children: [
-            SfPdfViewer.memory(
+      body: Stack(
+        children: [
+          // Widget untuk menampilkan PDF
+          Container(
+            key: _pdfViewerKey, // Berikan GlobalKey ke container PDF viewer
+            child: SfPdfViewer.memory(
               widget.pdfBytes,
               controller: _pdfViewerController,
               onPageChanged: (PdfPageChangedDetails details) {
-                setState(() => _currentPage = details.newPageNumber);
+                setState(() {
+                  _currentPageNumber = details.newPageNumber; // SfPdfViewer page number is 1-based
+                });
               },
+              onDocumentLoaded: (PdfDocumentLoadedDetails details) {
+                // Setelah dokumen dimuat, kita bisa coba set posisi awal QR berdasarkan ukuran view
+                 if (mounted && _pdfViewerKey.currentContext != null) {
+                    final RenderBox pdfArea = _pdfViewerKey.currentContext!.findRenderObject() as RenderBox;
+                    setState(() {
+                      _qrScreenPosition = Offset(
+                        pdfArea.size.width * 0.1,
+                        pdfArea.size.height * 0.7,
+                      );
+                    });
+                 }
+              }
             ),
-            // QR Code and Controls
-            Positioned(
-              left: _qrPosition.dx,
-              top: _qrPosition.dy,
-              child: Column(
+          ),
+          // Widget untuk QR Code yang bisa digeser dan diubah ukurannya
+          Positioned(
+            left: _qrScreenPosition.dx,
+            top: _qrScreenPosition.dy,
+            child: GestureDetector(
+              onPanUpdate: (details) { // Untuk menggeser QR
+                if (_pdfViewerKey.currentContext != null) {
+                  final RenderBox pdfAreaRenderBox = _pdfViewerKey.currentContext!.findRenderObject() as RenderBox;
+                  final Size pdfViewAreaSize = pdfAreaRenderBox.size;
+                  setState(() {
+                    // Batasi pergerakan QR agar tetap di dalam area PDF viewer
+                    _qrScreenPosition = Offset(
+                      (_qrScreenPosition.dx + details.delta.dx).clamp(0.0, pdfViewAreaSize.width - _qrScreenSize),
+                      (_qrScreenPosition.dy + details.delta.dy).clamp(0.0, pdfViewAreaSize.height - _qrScreenSize),
+                    );
+                  });
+                }
+              },
+              child: Column( // Kolom untuk QR dan kontrol ukurannya
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Draggable QR Code
-                  GestureDetector(
-                    onPanUpdate: (details) {
-                      setState(() {
-                        _qrPosition = Offset(
-                          _qrPosition.dx + details.delta.dx,
-                          _qrPosition.dy + details.delta.dy,
-                        );
-                      });
-                    },
-                    child: _buildQrCode(isDragging: _isDragging),
-                  ),
-                  // Size Controls - always visible
+                  // Menampilkan gambar QR dari URL
                   Container(
-                    width: _qrSize,
+                    width: _qrScreenSize,
+                    height: _qrScreenSize,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.shade200),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                      border: Border.all(color: Colors.blueAccent, width: 2),
+                      color: Colors.white.withOpacity(0.8), // Agak transparan agar PDF di bawahnya terlihat
                     ),
-                    margin: const EdgeInsets.only(top: 4),
-                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _qrSize = max(80, _qrSize - 10);
-                            });
-                          },
-                          child: const Icon(Icons.zoom_out, size: 16, color: Colors.blue),
-                        ),
-                        Expanded(
-                          child: SliderTheme(
-                            data: SliderThemeData(
-                              thumbShape: RoundSliderThumbShape(enabledThumbRadius: 8),
-                              trackHeight: 4,
-                              overlayShape: SliderComponentShape.noOverlay,
-                            ),
-                            child: Slider(
-                              value: _qrSize,
-                              min: 80,
-                              max: 250,
-                              divisions: 17,
-                              activeColor: Colors.blue,
-                              inactiveColor: Colors.blue.shade100,
-                              onChanged: (value) {
-                                setState(() {
-                                  _qrSize = value;
-                                });
-                              },
-                              onChangeStart: (_) => setState(() => _isResizing = true),
-                              onChangeEnd: (_) => setState(() => _isResizing = false),
-                            ),
+                    child: Image.network( // Gunakan Image.network
+                      _fullQrUrl ?? '',   // URL gambar QR dari parameter widget
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, loadingProgress) { // Tampilkan loading saat gambar QR dimuat
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                : null,
                           ),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _qrSize = min(250, _qrSize + 10);
-                            });
-                          },
-                          child: const Icon(Icons.zoom_in, size: 16, color: Colors.blue),
-                        ),
-                      ],
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) { // Tampilkan error jika gambar QR gagal dimuat
+                        print('Error memuat gambar QR: $error');
+                        return const Center(child: Icon(Icons.error_outline, color: Colors.red, size: 40));
+                      },
                     ),
+                  ),
+                  // Kontrol untuk mengubah ukuran QR
+                  Container(
+                     width: _qrScreenSize + 40, // Buat kontrol sedikit lebih lebar dari QR
+                     padding: const EdgeInsets.only(top:4),
+                     child: Material(
+                       color: Colors.transparent,
+                       child: Row(
+                         mainAxisAlignment: MainAxisAlignment.center,
+                         children: [
+                           IconButton(
+                            icon: Icon(Icons.remove_circle_outline, color: Colors.blueGrey.shade700),
+                            iconSize: 20, // Ukuran ikon
+                            // Kecilkan ukuran QR, minimal 50.0
+                            onPressed: () => setState(() => _qrScreenSize = (_qrScreenSize - 10).clamp(50.0, 300.0)),
+                           ),
+                           Expanded(
+                             child: Slider(
+                               value: _qrScreenSize,
+                               min: 50.0, // Ukuran minimal QR
+                               max: 300.0, // Ukuran maksimal QR
+                               divisions: 25, // Jumlah pembagian slider ((300-50)/10)
+                               activeColor: Colors.blueAccent,
+                               inactiveColor: Colors.grey.shade300,
+                               label: _qrScreenSize.round().toString(), // Label saat slider digeser
+                               onChanged: (double value) {
+                                 setState(() {
+                                   _qrScreenSize = value;
+                                 });
+                               },
+                             ),
+                           ),
+                           IconButton(
+                            icon: Icon(Icons.add_circle_outline, color: Colors.blueGrey.shade700),
+                            iconSize: 20,
+                            // Besarkan ukuran QR, maksimal 300.0
+                            onPressed: () => setState(() => _qrScreenSize = (_qrScreenSize + 10).clamp(50.0, 300.0)),
+                           ),
+                         ],
+                       ),
+                     ),
                   ),
                 ],
               ),
             ),
-            // Drag hint
-            Positioned(
-              bottom: 16,
-              left: 16,
-              right: 16,
-              child: Card(
-                color: Colors.black.withOpacity(0.7),
-                child: const Padding(
-                  padding: EdgeInsets.all(8.0),
-                  child: Text(
-                    'Seret QR Code ke posisi yang diinginkan, lalu klik "Sahkan" untuk mengesahkan dokumen',
-                    style: TextStyle(color: Colors.white),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
+          ),
+           // Indikator Halaman
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+              margin: const EdgeInsets.only(bottom: 16.0),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(20.0),
+              ),
+              child: Text(
+                // Tampilkan nomor halaman saat ini dan total halaman
+                // _pdfViewerController.pageCount mungkin null jika dokumen belum sepenuhnya dimuat
+                "Halaman: $_currentPageNumber / ${_pdfViewerController.pageCount}",
+                style: const TextStyle(color: Colors.white, fontSize: 14),
               ),
             ),
-            if (_isLoading)
-              Container(
-                color: Colors.black.withOpacity(0.3),
-                child: const Center(
-                  child: CircularProgressIndicator(),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQrCode({bool isDragging = false}) {
-    final url = DocumentService.getVerificationUrl(widget.documentId);
-    
-    return RepaintBoundary(
-      key: _qrKey,
-      child: Container(
-        width: _qrSize,
-        height: _qrSize,
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: isDragging ? Colors.blue.shade300 : Colors.blue,
-            width: 2,
           ),
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: isDragging ? [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 8,
-              spreadRadius: 1,
-            )
-          ] : null,
-        ),
-        padding: const EdgeInsets.all(8),
-        child: QrImageView(
-          data: url,
-          version: QrVersions.auto,
-          size: _qrSize - 16,
-          backgroundColor: Colors.white,
-          errorStateBuilder: (context, error) {
-            return const Center(
-              child: Text(
-                'Error generating QR code',
-                style: TextStyle(color: Colors.red),
-                textAlign: TextAlign.center,
-              ),
-            );
-          },
-        ),
+          // Tampilan loading overlay jika sedang memproses
+          if (_isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.3),
+              child: const Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.blueAccent))),
+            ),
+        ],
       ),
     );
   }

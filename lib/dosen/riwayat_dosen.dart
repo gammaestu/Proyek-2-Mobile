@@ -240,7 +240,19 @@ class _DosenRiwayatPageState extends State<DosenRiwayatPage> {
     );
   }
 
+  String _formatDate(String? dateString) {
+    if (dateString == null || dateString == '-') return '-';
+    try {
+      final date = DateTime.parse(dateString);
+      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return dateString;
+    }
+  }
+
   void _showDocumentDetail(BuildContext context, Map<String, dynamic> document) {
+    final bool isApproved = document['status']?.toString().toLowerCase() == 'disahkan';
+    
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -262,7 +274,10 @@ class _DosenRiwayatPageState extends State<DosenRiwayatPage> {
                 _detailRow('Nomor Surat', document['nomor_surat'] ?? '-'),
                 _detailRow('Hal', document['hal'] ?? '-'),
                 _detailRow('Nama Pengaju', document['namaMahasiswa'] ?? '-'),
-                _detailRow('Tanggal Pengajuan', document['tanggal_pengajuan'] ?? '-'),
+                _detailRow(
+                  isApproved ? 'Tanggal Disahkan' : 'Tanggal Pengajuan',
+                  isApproved ? _formatDate(document['tanggal_verifikasi']) : (document['tanggal_pengajuan'] ?? '-')
+                ),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
