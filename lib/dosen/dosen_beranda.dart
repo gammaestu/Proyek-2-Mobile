@@ -3,6 +3,8 @@ import '../component/navbar_dosen.dart';
 import '../component/appbar_dosen.dart';
 import '../services/auth_service.dart';
 import '../services/document_service.dart';
+import './pengesahan_dosen.dart';
+import './riwayat_dosen.dart';
 
 class DosenBerandaPage extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -90,8 +92,7 @@ class _DosenBerandaPageState extends State<DosenBerandaPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBarDosen(
-        namaDosen: _displayName, // atau widget.userData?['nama'] sesuai data Anda
-        title: "SIGNIX",
+        userData: _userData,
       ),
       backgroundColor: Colors.white,
       body: RefreshIndicator(
@@ -123,20 +124,75 @@ class _DosenBerandaPageState extends State<DosenBerandaPage> {
                 const SizedBox(height: 10),
                 if (_isLoading)
                   const Center(child: CircularProgressIndicator())
-                else ...[
-                  Row(
+                else ...[                Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _statusCard(Icons.description, "Diajukan Ormawa", _documentStats?['diajukan'] ?? 0, Colors.amber),
-                      _statusCard(Icons.verified, "Disahkan", _documentStats?['disahkan'] ?? 0, Colors.green),
+                      _statusCard(
+                        icon: Icons.description,
+                        title: "Diajukan Ormawa",
+                        count: _documentStats?['diajukan'] ?? 0,
+                        color: Colors.amber,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => DosenPengesahanPage(
+                              userData: _userData,
+                              initialStatusFilter: 'diajukan',
+                            ),
+                          ),
+                        ),
+                      ),
+                      _statusCard(
+                        icon: Icons.verified,
+                        title: "Disahkan",
+                        count: _documentStats?['disahkan'] ?? 0,
+                        color: Colors.green,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => DosenRiwayatPage(
+                              userData: _userData,
+                              initialStatusFilter: 'disahkan',
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _statusCard(Icons.warning, "Perlu Direvisi", _documentStats?['butuh revisi'] ?? 0, Colors.red),
-                      _statusCard(Icons.edit, "Sudah Direvisi", _documentStats?['sudah direvisi'] ?? 0, Colors.blue),
+                      _statusCard(
+                        icon: Icons.warning,
+                        title: "Perlu Direvisi",
+                        count: _documentStats?['butuh revisi'] ?? 0,
+                        color: Colors.red,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => DosenRiwayatPage(
+                              userData: _userData,
+                              initialStatusFilter: 'butuh revisi',
+                            ),
+                          ),
+                        ),
+                      ),
+                      _statusCard(
+                        icon: Icons.edit,
+                        title: "Sudah Direvisi",
+                        count: _documentStats?['sudah direvisi'] ?? 0,
+                        color: Colors.blue,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => DosenPengesahanPage(
+                              userData: _userData,
+                              initialStatusFilter: 'sudah direvisi',
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -164,32 +220,39 @@ class _DosenBerandaPageState extends State<DosenBerandaPage> {
         userData: _userData,
       ),
     );
-  }
-
-  Widget _statusCard(IconData icon, String title, int count, Color color) {
-    return Container(
-      width: 150,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
-        border: Border.all(color: color),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 30),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: TextStyle(color: color, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 5),
-          Text(
-            "$count",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color),
-          ),
-        ],
+  }  Widget _statusCard({
+    required IconData icon,
+    required String title,
+    required int count,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: 150,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.2),
+          border: Border.all(color: color),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 30),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              style: TextStyle(color: color, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 5),
+            Text(
+              "$count",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color),
+            ),
+          ],
+        ),
       ),
     );
   }

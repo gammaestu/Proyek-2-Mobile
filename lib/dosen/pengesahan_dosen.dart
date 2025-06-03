@@ -16,7 +16,8 @@ import 'qr_placement_page.dart';
 
 class DosenPengesahanPage extends StatefulWidget {
   final Map<String, dynamic>? userData;
-  const DosenPengesahanPage({super.key, this.userData});
+  final String? initialStatusFilter;
+  const DosenPengesahanPage({super.key, this.userData, this.initialStatusFilter});
 
   @override
   State<DosenPengesahanPage> createState() => _DosenPengesahanPageState();
@@ -39,6 +40,7 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
   @override
   void initState() {
     super.initState();
+    _selectedStatusFilter = widget.initialStatusFilter ?? 'Semua';
     _fetchDocuments(); // Panggil fungsi baru
   }
 
@@ -780,10 +782,8 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FB),
-      appBar: AppBarDosen(
-        namaDosen: widget.userData?['nama'],
-        title: "Pengesahan",
+      backgroundColor: const Color(0xFFF6F8FB),      appBar: AppBarDosen(
+        userData: widget.userData,
       ),
       body: RefreshIndicator(
         onRefresh: _fetchDocuments,

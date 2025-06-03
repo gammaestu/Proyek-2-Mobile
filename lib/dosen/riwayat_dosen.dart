@@ -11,7 +11,8 @@ import 'dart:typed_data';
 
 class DosenRiwayatPage extends StatefulWidget {
   final Map<String, dynamic>? userData;
-  const DosenRiwayatPage({super.key, this.userData});
+  final String? initialStatusFilter;
+  const DosenRiwayatPage({super.key, this.userData, this.initialStatusFilter});
 
   @override
   State<DosenRiwayatPage> createState() => _DosenRiwayatPageState();
@@ -30,11 +31,16 @@ class _DosenRiwayatPageState extends State<DosenRiwayatPage> {
     'disahkan': 'Disahkan',
     'butuh revisi': 'Butuh Revisi',
   };
-
   @override
   void initState() {
     super.initState();
+    if (widget.initialStatusFilter != null) {
+      _selectedStatus = widget.initialStatusFilter!;
+    }
     _loadDocuments();
+    if (widget.initialStatusFilter != null && _statusOptions.containsKey(widget.initialStatusFilter)) {
+      _selectedStatus = widget.initialStatusFilter!;
+    }
   }
 
   Future<void> _loadDocuments() async {
@@ -98,8 +104,7 @@ class _DosenRiwayatPageState extends State<DosenRiwayatPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBarDosen(
-        namaDosen: widget.userData?['nama'],
-        title: "Riwayat",
+        userData: widget.userData,
       ),
       body: Column(
         children: [

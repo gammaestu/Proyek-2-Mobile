@@ -165,7 +165,7 @@ class DocumentService {
         return 'http://10.0.2.2:8000/api';
       }
       // Untuk device fisik, gunakan IP komputer Anda
-      return 'http://192.168.1.16:8000/api'; // Ganti dengan IP komputer Anda
+      return 'http://192.168.1.3:8000/api'; // Ganti dengan IP komputer Anda
     }
     return 'http://localhost:8000/api';
   }
@@ -255,14 +255,16 @@ class DocumentService {
   Future<Map<String, dynamic>> getAllDocuments() async {
     try {
       await _setupDio();
-      print('Fetching documents from API...');
-      print('Token available: ${await _authService.getToken() != null}');
+      final role = await _getUserType(); // Get user role
+      print('Fetching documents for role: $role');
 
+      // Pilih endpoint berdasarkan role
+      final endpoint = role == 'dosen' ? '/dosen/documents' : '/ormawa/documents';
+      
       final response = await _dio.get(
-        '/ormawa/documents',
+        endpoint,
         options: Options(
-          validateStatus: (status) =>
-              true, // Accept all status codes for debugging
+          validateStatus: (status) => true,
         ),
       );
 
@@ -294,18 +296,18 @@ class DocumentService {
       }
     } catch (e) {
       print('Error in getAllDocuments: $e');
-      if (e is DioException) {
-        print('DioError details: ${e.response?.data}');
-        print('DioError message: ${e.message}');
-        print('DioError type: ${e.type}');
-        print('DioError requestOptions: ${e.requestOptions.path}');
-      }
       return {
         'success': false,
         'message': e.toString(),
         'data': [],
       };
     }
+  }
+
+  // Helper method to get user type
+  Future<String> _getUserType() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('user_type') ?? 'unknown';
   }
 
   Future<Map<String, dynamic>> getDosenList() async {
