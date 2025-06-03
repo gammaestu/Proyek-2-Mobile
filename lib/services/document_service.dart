@@ -121,7 +121,8 @@ class DocumentService {
       print('Token untuk stats dosen: $token'); // Debug print
 
       final baseUrl = getBaseUrl();
-      print('URL untuk stats dosen: $baseUrl/dosen/document-stats'); // Debug print
+      print(
+          'URL untuk stats dosen: $baseUrl/dosen/document-stats'); // Debug print
 
       final response = await http.get(
         Uri.parse('$baseUrl/dosen/document-stats'),
@@ -520,7 +521,7 @@ class DocumentService {
           'data': response.data,
           'filename': fileName,
         };
-      } 
+      }
 
       return {
         'success': false,
@@ -536,82 +537,83 @@ class DocumentService {
   }
 
   // New direct method using multipart form data
-  Future<Map<String, dynamic>> multipartApproveDocument(String documentId, String x, String y, String page, String size) async {
+  Future<Map<String, dynamic>> multipartApproveDocument(
+      String documentId, String x, String y, String page, String size) async {
     try {
       final token = await _authService.getToken();
       if (token == null) {
         return {'success': false, 'message': 'Token tidak ditemukan'};
       }
-      
+
       // Get base URL for the API
       final baseUrl = getBaseUrl();
       final endpoint = '$baseUrl/dosen/documents/$documentId/approve';
-      
+
       print('Making multipart form request to: $endpoint');
-      
+
       // Create verification URL for QR code
       final verificationUrl = getVerificationUrl(documentId);
-      
+
       // Create a multipart request
       var request = http.MultipartRequest('POST', Uri.parse(endpoint));
-      
+
       // Add headers
       request.headers.addAll({
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',
       });
-      
+
       // Add form fields - trying different formats for the position data
       // Format 1: Nested fields using bracket notation
       request.fields['qr_position[x]'] = x.trim();
       request.fields['qr_position[y]'] = y.trim();
       request.fields['qr_position[page]'] = page.trim();
       request.fields['qr_position[size]'] = size.trim();
-      
+
       // Add data_qr field - try both formats
       request.fields['data_qr'] = jsonEncode({"url": verificationUrl});
-      
+
       print('Sending multipart request with fields: ${request.fields}');
-      
+
       // Send the request
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
-      
+
       print('Multipart response status: ${response.statusCode}');
       print('Multipart response body: ${response.body}');
-      
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         return {'success': true, 'message': 'Dokumen berhasil disahkan'};
       }
-      
+
       // If failed, try with flat field structure
       print('First multipart attempt failed, trying flat structure...');
-      
+
       var request2 = http.MultipartRequest('POST', Uri.parse(endpoint));
       request2.headers.addAll({
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',
       });
-      
+
       // Format 2: Flat fields
       request2.fields['x'] = x.trim();
       request2.fields['y'] = y.trim();
       request2.fields['page'] = page.trim();
       request2.fields['size'] = size.trim();
       request2.fields['data_qr'] = verificationUrl; // Use plain URL
-      
+
       print('Sending second multipart request with fields: ${request2.fields}');
-      
+
       final streamedResponse2 = await request2.send();
       final response2 = await http.Response.fromStream(streamedResponse2);
-      
+
       print('Second multipart response status: ${response2.statusCode}');
       print('Second multipart response body: ${response2.body}');
-      
+
       if (response2.statusCode == 200 || response2.statusCode == 201) {
         return {'success': true, 'message': 'Dokumen berhasil disahkan'};
       }
-      
+
       // Extract error message if possible
       String errorMessage = "Gagal mengesahkan dokumen";
       try {
@@ -620,7 +622,7 @@ class DocumentService {
       } catch (e) {
         // Use default message
       }
-      
+
       return {'success': false, 'message': errorMessage};
     } catch (e) {
       print('Error in multipartApproveDocument: $e');
@@ -629,23 +631,24 @@ class DocumentService {
   }
 
   // Direct HTTP POST method for document approval - bypassing Dio
-  Future<Map<String, dynamic>> directApproveDocument(String documentId, String x, String y, String page, String size) async {
+  Future<Map<String, dynamic>> directApproveDocument(
+      String documentId, String x, String y, String page, String size) async {
     try {
       final token = await _authService.getToken();
       if (token == null) {
         return {'success': false, 'message': 'Token tidak ditemukan'};
       }
-      
+
       // Get base URL for the API
       final baseUrl = getBaseUrl();
       final endpoint = '$baseUrl/dosen/documents/$documentId/approve';
-      
+
       print('Making direct HTTP POST request to: $endpoint');
-      
+
       // Create verification URL for QR code - ensure it's properly formatted and encoded
       final verificationUrl = getVerificationUrl(documentId);
       final qrData = jsonEncode({"url": verificationUrl});
-      
+
       // Create request body - streamline to use the simplest structure that's most likely to work
       final Map<String, String> body = {
         'qr_position[x]': x.trim(),
@@ -654,23 +657,24 @@ class DocumentService {
         'qr_position[size]': size.trim(),
         'data_qr': qrData
       };
-      
+
       print('Request body: $body');
-      
+
       // Make direct HTTP request
       final response = await http.post(
         Uri.parse(endpoint),
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded', // Use form URL encoded
+          'Content-Type':
+              'application/x-www-form-urlencoded', // Use form URL encoded
         },
         body: body,
       );
-      
+
       print('Direct HTTP response status: ${response.statusCode}');
       print('Direct HTTP response body: ${response.body}');
-      
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         Map<String, dynamic> responseData = {};
         try {
@@ -681,14 +685,14 @@ class DocumentService {
         } catch (e) {
           print('Error parsing response: $e');
         }
-        
+
         // Even if parsing fails, assume success based on status code
         return {'success': true, 'message': 'Dokumen berhasil disahkan'};
       }
-      
+
       // Try a different approach with raw URL instead of JSON object
       print('Direct method failed, trying with raw URL as data_qr...');
-      
+
       final simplestBody = {
         'qr_position[x]': x.trim(),
         'qr_position[y]': y.trim(),
@@ -696,7 +700,7 @@ class DocumentService {
         'qr_position[size]': size.trim(),
         'data_qr': verificationUrl
       };
-      
+
       final simplestResponse = await http.post(
         Uri.parse(endpoint),
         headers: {
@@ -706,11 +710,12 @@ class DocumentService {
         },
         body: simplestBody,
       );
-      
-      if (simplestResponse.statusCode == 200 || simplestResponse.statusCode == 201) {
+
+      if (simplestResponse.statusCode == 200 ||
+          simplestResponse.statusCode == 201) {
         return {'success': true, 'message': 'Dokumen berhasil disahkan'};
       }
-      
+
       // If all attempts failed, return error message
       String errorMessage = "Gagal mengesahkan dokumen";
       try {
@@ -719,7 +724,7 @@ class DocumentService {
       } catch (e) {
         // Use default message
       }
-      
+
       return {'success': false, 'message': errorMessage};
     } catch (e) {
       print('Error in directApproveDocument: $e');
@@ -728,30 +733,33 @@ class DocumentService {
   }
 
   // Update approveDocumentWithQrData to try the direct HTTP method first
-  Future<Map<String, dynamic>> approveDocumentWithQrData(String documentId, String x, String y, String page, String size) async {
+  Future<Map<String, dynamic>> approveDocumentWithQrData(
+      String documentId, String x, String y, String page, String size) async {
     try {
       // First try with multipart form-data method
-      final multipartResult = await multipartApproveDocument(documentId, x, y, page, size);
+      final multipartResult =
+          await multipartApproveDocument(documentId, x, y, page, size);
       if (multipartResult['success'] == true) {
         return multipartResult;
       }
-      
+
       // Then try with direct HTTP method
-      final directResult = await directApproveDocument(documentId, x, y, page, size);
+      final directResult =
+          await directApproveDocument(documentId, x, y, page, size);
       if (directResult['success'] == true) {
         return directResult;
       }
-      
+
       // If direct method failed, try with the original approaches
       final token = await _authService.getToken();
       if (token == null) {
         return {'success': false, 'message': 'Token tidak ditemukan'};
       }
-      
+
       // Based on the error logs, we need to provide a value for data_qr
       // Create a default QR data string if none is available
       final defaultQrData = '{"url":"${getVerificationUrl(documentId)}"}';
-      
+
       // Define multiple attempts with different data structures
       final List<dynamic> attempts = [
         // Attempt 1: Direct qr_position and data_qr
@@ -764,16 +772,10 @@ class DocumentService {
           },
           'data_qr': defaultQrData
         },
-        
+
         // Attempt 2: Flat structure
-        {
-          'x': x,
-          'y': y,
-          'page': page,
-          'size': size,
-          'data_qr': defaultQrData
-        },
-        
+        {'x': x, 'y': y, 'page': page, 'size': size, 'data_qr': defaultQrData},
+
         // Attempt 3: Direct properties under qr_position
         {
           'qr_position': {
@@ -784,7 +786,7 @@ class DocumentService {
             'data_qr': defaultQrData
           }
         },
-        
+
         // Attempt 4: Use FormData approach
         () async {
           return FormData.fromMap({
@@ -796,7 +798,7 @@ class DocumentService {
           });
         }
       ];
-      
+
       // Setup options
       final options = Options(
         headers: {
@@ -804,15 +806,16 @@ class DocumentService {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        validateStatus: (status) => true, // Accept all status codes for debugging
+        validateStatus: (status) =>
+            true, // Accept all status codes for debugging
       );
-      
+
       // Try each attempt
       for (int i = 0; i < attempts.length; i++) {
         try {
-          print('Attempting approach ${i+1}');
+          print('Attempting approach ${i + 1}');
           dynamic data = attempts[i];
-          
+
           // Handle function that returns FormData
           if (data is Function) {
             data = await data();
@@ -821,28 +824,32 @@ class DocumentService {
           } else {
             options.headers?['Content-Type'] = 'application/json';
           }
-          
+
           final response = await _dio.post(
             '/dosen/documents/$documentId/approve',
             data: data,
             options: options,
           );
-          
-          print('Response for attempt ${i+1}: status=${response.statusCode}, data=${response.data}');
-          
-          if (response.statusCode == 200 || 
-              response.statusCode == 201 || 
+
+          print(
+              'Response for attempt ${i + 1}: status=${response.statusCode}, data=${response.data}');
+
+          if (response.statusCode == 200 ||
+              response.statusCode == 201 ||
               (response.data is Map && response.data['success'] == true)) {
-            print('Attempt ${i+1} successful!');
+            print('Attempt ${i + 1} successful!');
             return {'success': true, 'message': 'Dokumen berhasil disahkan'};
           }
         } catch (e) {
-          print('Error in attempt ${i+1}: $e');
+          print('Error in attempt ${i + 1}: $e');
         }
       }
-      
+
       // If all attempts failed, return error
-      return {'success': false, 'message': 'Gagal mengesahkan dokumen, server mungkin sedang bermasalah'};
+      return {
+        'success': false,
+        'message': 'Gagal mengesahkan dokumen, server mungkin sedang bermasalah'
+      };
     } catch (e) {
       print('Error in approveDocumentWithQrData: $e');
       return {'success': false, 'message': 'Error: $e'};
@@ -850,21 +857,16 @@ class DocumentService {
   }
 
   // Override approveDocument to use our new direct method first
-  Future<Map<String, dynamic>> approveDocument(
-    String documentId,
-    String x,
-    String y,
-    String page,
-    String size,
-    String? qrImage
-  ) async {
+  Future<Map<String, dynamic>> approveDocument(String documentId, String x,
+      String y, String page, String size, String? qrImage) async {
     try {
       // First try with the direct method that addresses the data_qr field requirement
-      final result = await approveDocumentWithQrData(documentId, x, y, page, size);
+      final result =
+          await approveDocumentWithQrData(documentId, x, y, page, size);
       if (result['success'] == true) {
         return result;
       }
-      
+
       // If that failed and we have a QR image, try with the image
       if (qrImage != null) {
         // Try with the QR image included
@@ -872,9 +874,9 @@ class DocumentService {
         if (token == null) {
           return {'success': false, 'message': 'Token tidak ditemukan'};
         }
-        
+
         final defaultQrData = '{"url":"${getVerificationUrl(documentId)}"}';
-        
+
         // Create payload with both position and QR data
         final payload = {
           'x': x,
@@ -884,7 +886,7 @@ class DocumentService {
           'data_qr': defaultQrData,
           'qr_image': qrImage
         };
-        
+
         final options = Options(
           headers: {
             'Authorization': 'Bearer $token',
@@ -893,29 +895,33 @@ class DocumentService {
           },
           validateStatus: (status) => true,
         );
-        
+
         final response = await _dio.post(
           '/dosen/documents/$documentId/approve',
           data: payload,
           options: options,
         );
-        
-        if (response.statusCode == 200 || 
-            response.statusCode == 201 || 
+
+        if (response.statusCode == 200 ||
+            response.statusCode == 201 ||
             (response.data is Map && response.data['success'] == true)) {
           return {'success': true, 'message': 'Dokumen berhasil disahkan'};
         }
       }
-      
+
       // If all attempts failed
-      return {'success': false, 'message': 'Gagal mengesahkan dokumen. Coba lagi nanti.'};
+      return {
+        'success': false,
+        'message': 'Gagal mengesahkan dokumen. Coba lagi nanti.'
+      };
     } catch (e) {
       print('Error in approveDocument: $e');
       return {'success': false, 'message': 'Error: $e'};
     }
   }
 
-  Future<Map<String, dynamic>> getDocumentFile(String documentId, {String role = 'dosen'}) async {
+  Future<Map<String, dynamic>> getDocumentFile(String documentId,
+      {String role = 'dosen'}) async {
     try {
       final token = await _authService.getToken();
       print('Getting document file for ID: $documentId with role: $role');
@@ -959,10 +965,7 @@ class DocumentService {
       };
     } catch (e) {
       print('Error getting document file: $e');
-      return {
-        'success': false,
-        'message': 'Error: $e'
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -1008,7 +1011,9 @@ class DocumentService {
   static String getVerificationUrl(String documentId) {
     final baseUrl = getBaseUrl().replaceAll('/api', '');
     // Ensure the base URL doesn't have trailing slashes
-    final cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final cleanBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
     return '$cleanBaseUrl/verify/$documentId';
   }
 
@@ -1067,7 +1072,8 @@ class DocumentService {
   }
 
   // Method untuk menambah QR code
-  Future<Map<String, dynamic>> addQrCode(String documentId, Map<String, dynamic> position) async {
+  Future<Map<String, dynamic>> addQrCode(
+      String documentId, Map<String, dynamic> position) async {
     try {
       final token = await _authService.getToken();
       if (token == null) {
@@ -1076,7 +1082,7 @@ class DocumentService {
 
       final baseUrl = getBaseUrl();
       final url = Uri.parse('$baseUrl/dosen/documents/$documentId/approve');
-      
+
       // Create verification URL for QR code
       final verificationUrl = '$baseUrl/verify/$documentId';
 
@@ -1109,26 +1115,27 @@ class DocumentService {
         return {'success': true, 'message': 'QR Code berhasil ditambahkan'};
       }
 
-      final errorMsg = response.body.isNotEmpty 
-          ? jsonDecode(response.body)['message'] 
+      final errorMsg = response.body.isNotEmpty
+          ? jsonDecode(response.body)['message']
           : 'Gagal menambahkan QR Code';
       return {'success': false, 'message': errorMsg};
-
     } catch (e) {
       print('Error in addQrCode: $e');
       return {'success': false, 'message': e.toString()};
     }
   }
 
-  Future<Map<String, dynamic>> generateQrCodeForDocument(String documentId) async {
+  Future<Map<String, dynamic>> generateQrCodeForDocument(
+      String documentId) async {
     try {
       await _setupDio();
       print('Generating QR code for document: $documentId'); // Debug log
-      
+
       final response = await _dio.post(
         '/dosen/dokumen/$documentId/generate-qr',
         options: Options(
-          validateStatus: (status) => true, // Accept all status codes for debugging
+          validateStatus: (status) =>
+              true, // Accept all status codes for debugging
         ),
       );
 
@@ -1145,13 +1152,15 @@ class DocumentService {
         } else {
           return {
             'success': false,
-            'message': response.data['message'] ?? 'Server mengembalikan status error.',
+            'message': response.data['message'] ??
+                'Server mengembalikan status error.',
           };
         }
       } else {
-        final message = response.data is Map ? 
-          response.data['message'] ?? 'Gagal membuat kode QR (${response.statusCode})' :
-          'Gagal membuat kode QR (${response.statusCode})';
+        final message = response.data is Map
+            ? response.data['message'] ??
+                'Gagal membuat kode QR (${response.statusCode})'
+            : 'Gagal membuat kode QR (${response.statusCode})';
         return {
           'success': false,
           'message': message,
@@ -1177,7 +1186,7 @@ class DocumentService {
   }) async {
     try {
       await _setupDio();
-      
+
       // Format data sesuai dengan ekspektasi backend
       final Map<String, dynamic> payload = {
         'x_percent': xPercent,
@@ -1195,7 +1204,7 @@ class DocumentService {
       print('Payload: $payload'); // Debug log
 
       final response = await _dio.post(
-        '/dosen/dokumen/$documentId/embed-qr', 
+        '/dosen/dokumen/$documentId/embed-qr',
         data: payload,
         options: Options(
           validateStatus: (status) => true,
@@ -1213,13 +1222,15 @@ class DocumentService {
         if (response.data['success'] == true) {
           return {
             'success': true,
-            'message': response.data['message'] ?? 'QR Code berhasil ditempelkan',
+            'message':
+                response.data['message'] ?? 'QR Code berhasil ditempelkan',
             'signed_document_url': response.data['signed_document_url'],
           };
         } else {
           return {
             'success': false,
-            'message': response.data['message'] ?? 'Server mengembalikan status error',
+            'message':
+                response.data['message'] ?? 'Server mengembalikan status error',
           };
         }
       } else {
@@ -1236,9 +1247,9 @@ class DocumentService {
       print('Error in embedQrCodeOnDocument: $e'); // Debug log
       return {
         'success': false,
-        'message': 'Terjadi kesalahan saat menempelkan QR Code: ${e.toString()}',
+        'message':
+            'Terjadi kesalahan saat menempelkan QR Code: ${e.toString()}',
       };
     }
   }
-
 }

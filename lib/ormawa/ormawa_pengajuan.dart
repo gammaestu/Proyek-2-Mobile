@@ -252,268 +252,274 @@ class _OrmawaPengajuanPageState extends State<OrmawaPengajuanPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBarOrmawa(userData: widget.userData),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'FORMULIR PENGAJUAN',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 24),
-              TextFormField(
-                controller: _nomorSuratController,
-                decoration: const InputDecoration(
-                  labelText: 'Nomor Surat',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Nomor surat tidak boleh kosong';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                enabled: false,
-                initialValue:
-                    widget.userData?['namaMahasiswa'] ?? 'Nama Pengaju',
-                decoration: const InputDecoration(
-                  labelText: 'Nama Pengaju',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                enabled: false,
-                initialValue: widget.userData?['namaOrmawa'] ?? 'Nama Ormawa',
-                decoration: const InputDecoration(
-                  labelText: 'Nama Ormawa',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _selectedTujuan,
-                decoration: const InputDecoration(
-                  labelText: 'Tujuan Pengajuan',
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'Dosen',
-                    child: Text('Dosen'),
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pushReplacementNamed(context, '/login');
+        return false;
+      },
+      child: Scaffold(
+        appBar: AppBarOrmawa(userData: widget.userData),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'FORMULIR PENGAJUAN',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
-                  DropdownMenuItem(
-                    value: 'Kemahasiswaan',
-                    child: Text('Kemahasiswaan'),
-                  ),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    _selectedTujuan = value;
-                    _selectedDosenId = null;
-                    _selectedKemahasiswaanId = null;
-                  });
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Silakan pilih tujuan pengajuan';
-                  }
-                  return null;
-                },
-              ),
-              if (_selectedTujuan == 'Dosen') ...[
-                const SizedBox(height: 16),
-                _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : Column(
-                        children: [
-                          if (_dosenList.isEmpty)
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Text(
-                                    'Tidak ada data dosen. ',
-                                    style: TextStyle(color: Colors.red),
-                                  ),
-                                  TextButton(
-                                    onPressed: _loadData,
-                                    child: const Text('Coba Lagi'),
-                                  ),
-                                ],
-                              ),
-                            )
-                          else
-                            DropdownButtonFormField<String>(
-                              value: _selectedDosenId,
-                              decoration: const InputDecoration(
-                                labelText: 'Pilih Dosen',
-                                border: OutlineInputBorder(),
-                                hintText: 'Pilih dosen tujuan',
-                              ),
-                              items: _dosenList.map((dosen) {
-                                print(
-                                    'Creating dropdown item for dosen: $dosen'); // Debug print
-                                return DropdownMenuItem(
-                                  value: dosen['id'].toString(),
-                                  child: Text(
-                                      dosen['nama'] ?? 'Nama tidak tersedia'),
-                                );
-                              }).toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  _selectedDosenId = value;
-                                  print(
-                                      'Selected dosen ID: $value'); // Debug print
-                                });
-                              },
-                              validator: (value) {
-                                if (_selectedTujuan == 'Dosen' &&
-                                    (value == null || value.isEmpty)) {
-                                  return 'Silakan pilih dosen';
-                                }
-                                return null;
-                              },
-                            ),
-                        ],
-                      ),
-              ],
-              if (_selectedTujuan == 'Kemahasiswaan') ...[
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: _selectedKemahasiswaanId,
+                ),
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: _nomorSuratController,
                   decoration: const InputDecoration(
-                    labelText: 'Pilih Kemahasiswaan',
+                    labelText: 'Nomor Surat',
                     border: OutlineInputBorder(),
                   ),
-                  items: _kemahasiswaanList.map((kemahasiswaan) {
-                    return DropdownMenuItem(
-                      value: kemahasiswaan['id'].toString(),
-                      child: Text(kemahasiswaan['nama']),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedKemahasiswaanId = value;
-                    });
-                  },
                   validator: (value) {
-                    if (_selectedTujuan == 'Kemahasiswaan' &&
-                        (value == null || value.isEmpty)) {
-                      return 'Silakan pilih kemahasiswaan';
+                    if (value == null || value.isEmpty) {
+                      return 'Nomor surat tidak boleh kosong';
                     }
                     return null;
                   },
                 ),
-              ],
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _halController,
-                decoration: const InputDecoration(
-                  labelText: 'Hal',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                TextFormField(
+                  enabled: false,
+                  initialValue:
+                      widget.userData?['namaMahasiswa'] ?? 'Nama Pengaju',
+                  decoration: const InputDecoration(
+                    labelText: 'Nama Pengaju',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Hal tidak boleh kosong';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Unggah Dokumen',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  enabled: false,
+                  initialValue: widget.userData?['namaOrmawa'] ?? 'Nama Ormawa',
+                  decoration: const InputDecoration(
+                    labelText: 'Nama Ormawa',
+                    border: OutlineInputBorder(),
                   ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Format yang diizinkan: PDF (Maks. 10MB)',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedTujuan,
+                  decoration: const InputDecoration(
+                    labelText: 'Tujuan Pengajuan',
+                    border: OutlineInputBorder(),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _selectedFile?.name ?? 'Tidak ada file dipilih',
-                          style: TextStyle(
-                            color: _selectedFile != null
-                                ? Colors.black
-                                : Colors.grey,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'Dosen',
+                      child: Text('Dosen'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Kemahasiswaan',
+                      child: Text('Kemahasiswaan'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedTujuan = value;
+                      _selectedDosenId = null;
+                      _selectedKemahasiswaanId = null;
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Silakan pilih tujuan pengajuan';
+                    }
+                    return null;
+                  },
+                ),
+                if (_selectedTujuan == 'Dosen') ...[
+                  const SizedBox(height: 16),
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : Column(
+                          children: [
+                            if (_dosenList.isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Text(
+                                      'Tidak ada data dosen. ',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                    TextButton(
+                                      onPressed: _loadData,
+                                      child: const Text('Coba Lagi'),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            else
+                              DropdownButtonFormField<String>(
+                                value: _selectedDosenId,
+                                decoration: const InputDecoration(
+                                  labelText: 'Pilih Dosen',
+                                  border: OutlineInputBorder(),
+                                  hintText: 'Pilih dosen tujuan',
+                                ),
+                                items: _dosenList.map((dosen) {
+                                  print(
+                                      'Creating dropdown item for dosen: $dosen'); // Debug print
+                                  return DropdownMenuItem(
+                                    value: dosen['id'].toString(),
+                                    child: Text(
+                                        dosen['nama'] ?? 'Nama tidak tersedia'),
+                                  );
+                                }).toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedDosenId = value;
+                                    print(
+                                        'Selected dosen ID: $value'); // Debug print
+                                  });
+                                },
+                                validator: (value) {
+                                  if (_selectedTujuan == 'Dosen' &&
+                                      (value == null || value.isEmpty)) {
+                                    return 'Silakan pilih dosen';
+                                  }
+                                  return null;
+                                },
+                              ),
+                          ],
                         ),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: _pickFile,
-                        icon: const Icon(Icons.upload_file),
-                        label: const Text('Pilih PDF'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ],
+                ],
+                if (_selectedTujuan == 'Kemahasiswaan') ...[
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: _selectedKemahasiswaanId,
+                    decoration: const InputDecoration(
+                      labelText: 'Pilih Kemahasiswaan',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _kemahasiswaanList.map((kemahasiswaan) {
+                      return DropdownMenuItem(
+                        value: kemahasiswaan['id'].toString(),
+                        child: Text(kemahasiswaan['nama']),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedKemahasiswaanId = value;
+                      });
+                    },
+                    validator: (value) {
+                      if (_selectedTujuan == 'Kemahasiswaan' &&
+                          (value == null || value.isEmpty)) {
+                        return 'Silakan pilih kemahasiswaan';
+                      }
+                      return null;
+                    },
                   ),
                 ],
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _catatanController,
-                decoration: const InputDecoration(
-                  labelText: 'Catatan (opsional)',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _submitForm,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _halController,
+                  decoration: const InputDecoration(
+                    labelText: 'Hal',
+                    border: OutlineInputBorder(),
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Text('Ajukan'),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Hal tidak boleh kosong';
+                    }
+                    return null;
+                  },
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Unggah Dokumen',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Format yang diizinkan: PDF (Maks. 10MB)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _selectedFile?.name ?? 'Tidak ada file dipilih',
+                            style: TextStyle(
+                              color: _selectedFile != null
+                                  ? Colors.black
+                                  : Colors.grey,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _pickFile,
+                          icon: const Icon(Icons.upload_file),
+                          label: const Text('Pilih PDF'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _catatanController,
+                  decoration: const InputDecoration(
+                    labelText: 'Catatan (opsional)',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _submitForm,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text('Ajukan'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-      bottomNavigationBar: NavbarOrmawa(
-        currentIndex: _selectedIndex,
-        userData: widget.userData,
+        bottomNavigationBar: NavbarOrmawa(
+          currentIndex: _selectedIndex,
+          userData: widget.userData,
+        ),
       ),
     );
   }

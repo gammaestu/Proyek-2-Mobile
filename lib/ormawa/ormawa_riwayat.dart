@@ -150,173 +150,219 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBarOrmawa(userData: widget.userData),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await Future.wait([
-            _loadDocumentStats(),
-            _loadDocuments(),
-          ]);
-        },
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Status Cards
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildStatusCard(
-                      "Dokumen Diajukan",
-                      _documentStats?['submitted'] ?? 0,
-                      Colors.orange,
-                      Icons.pending_actions,
-                    ),
-                    _buildStatusCard(
-                      "Dokumen Tertanda",
-                      _documentStats?['signed'] ?? 0,
-                      Colors.green,
-                      Icons.check_circle,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildStatusCard(
-                      "Perlu Direvisi",
-                      _documentStats?['perlu_revisi'] ?? 0,
-                      Colors.red,
-                      Icons.cancel,
-                    ),
-                    _buildStatusCard(
-                      "Sudah Direvisi",
-                      _documentStats?['sudah_direvisi'] ?? 0,
-                      Colors.blue,
-                      Icons.edit_document,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // Riwayat Section
-                const Text(
-                  "Riwayat",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pushReplacementNamed(context, '/login');
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBarOrmawa(userData: widget.userData),
+        body: RefreshIndicator(
+          onRefresh: () async {
+            await Future.wait([
+              _loadDocumentStats(),
+              _loadDocuments(),
+            ]);
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Status Cards
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildStatusCard(
+                        "Dokumen Diajukan",
+                        _documentStats?['submitted'] ?? 0,
+                        Colors.orange,
+                        Icons.pending_actions,
+                      ),
+                      _buildStatusCard(
+                        "Dokumen Tertanda",
+                        _documentStats?['signed'] ?? 0,
+                        Colors.green,
+                        Icons.check_circle,
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 10),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildStatusCard(
+                        "Perlu Direvisi",
+                        _documentStats?['perlu_revisi'] ?? 0,
+                        Colors.red,
+                        Icons.cancel,
+                      ),
+                      _buildStatusCard(
+                        "Sudah Direvisi",
+                        _documentStats?['sudah_direvisi'] ?? 0,
+                        Colors.blue,
+                        Icons.edit_document,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
 
-                // Filter Buttons
-                Row(
-                  children: [
-                    _buildFilterButton(
-                      "Filter",
-                      Icons.filter_list,
-                      () {
-                        _showFilterDialog();
+                  // Riwayat Section
+                  const Text(
+                    "Riwayat",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Filter Buttons
+                  Row(
+                    children: [
+                      _buildFilterButton(
+                        "Filter",
+                        Icons.filter_list,
+                        () {
+                          _showFilterDialog();
+                        },
+                      ),
+                      const SizedBox(width: 10),
+                      _buildFilterButton(
+                        "Urutkan",
+                        Icons.sort,
+                        () {
+                          // TODO: Implement sort
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Daftar Dokumen
+                  if (_isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_documents.isEmpty)
+                    const Center(child: Text('Tidak ada dokumen'))
+                  else
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _documents.length,
+                      itemBuilder: (context, index) {
+                        final document = _documents[index];
+                        final status =
+                            (document['status'] ?? '').toString().toLowerCase();
+                        final statusColor = _getStatusColor(status);
+                        final statusText = status.toUpperCase();
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF7F8FA),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              // Ikon dokumen di lingkaran
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.description_outlined,
+                                    color: Colors.orange, size: 24),
+                              ),
+                              const SizedBox(width: 16),
+                              // Info dokumen
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Text('Nomor: ',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.w500)),
+                                        Text(
+                                          document['nomor_surat'] ?? '-',
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Hal: ${document['hal'] ?? '-'}',
+                                      style: const TextStyle(
+                                          color: Colors.black87, fontSize: 13),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 8,
+                                          height: 8,
+                                          margin:
+                                              const EdgeInsets.only(right: 6),
+                                          decoration: BoxDecoration(
+                                            color: statusColor,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        Text(
+                                          statusText,
+                                          style: TextStyle(
+                                            color: statusColor,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            letterSpacing: 1,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Tombol Detail
+                              OutlinedButton.icon(
+                                onPressed: () =>
+                                    _showDocumentDetail(context, document),
+                                icon: const Icon(Icons.remove_red_eye_outlined,
+                                    size: 18, color: Colors.blue),
+                                label: const Text('Detail',
+                                    style: TextStyle(color: Colors.blue)),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: Colors.blue),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8)),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 8),
+                                  foregroundColor: Colors.blue,
+                                  backgroundColor: Colors.transparent,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
                       },
                     ),
-                    const SizedBox(width: 10),
-                    _buildFilterButton(
-                      "Urutkan",
-                      Icons.sort,
-                      () {
-                        // TODO: Implement sort
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // Daftar Dokumen
-                if (_isLoading)
-                  const Center(child: CircularProgressIndicator())
-                else if (_documents.isEmpty)
-                  const Center(child: Text('Tidak ada dokumen'))
-                else
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _documents.length,
-                    itemBuilder: (context, index) {
-                      final document = _documents[index];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey[300]!),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        "Nomor: ${document['nomor_surat'] ?? '-'}",
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        "Hal: ${document['hal'] ?? '-'}",
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                      Text(
-                                        "Status: ${document['status'] ?? '-'}",
-                                        style: TextStyle(
-                                          color: _getStatusColor(
-                                              document['status']),
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                ElevatedButton(
-                                  onPressed: () =>
-                                      _showDocumentDetail(context, document),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.blue,
-                                  ),
-                                  child: const Text(
-                                    "Lihat Detail",
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
-      ),
-      bottomNavigationBar: NavbarOrmawa(
-        currentIndex: _selectedIndex,
-        userData: widget.userData,
+        bottomNavigationBar: NavbarOrmawa(
+          currentIndex: _selectedIndex,
+          userData: widget.userData,
+        ),
       ),
     );
   }
@@ -338,174 +384,227 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
     }
   }
 
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 16),
+          ),
+          const Divider(),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(String? dateString) {
+    if (dateString == null || dateString == '-') return '-';
+    try {
+      final date = DateTime.parse(dateString);
+      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return dateString;
+    }
+  }
+
   void _showDocumentDetail(
       BuildContext context, Map<String, dynamic> document) {
+    final status = (document['status'] ?? '').toString().toLowerCase();
+    final isRevisi = status == 'butuh revisi';
+    final bool isApproved = status == 'disahkan';
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        final status = (document['status'] ?? '').toString().toLowerCase();
-        final isRevisi = status == 'butuh revisi';
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: const Text('Detail Dokumen'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Nomor Surat: ${document['nomor_surat'] ?? '-'}'),
-                    const SizedBox(height: 8),
-                    Text('Hal: ${document['hal'] ?? '-'}'),
-                    const SizedBox(height: 8),
-                    Text('Status: ${document['status'] ?? '-'}'),
-                    const SizedBox(height: 8),
-                    Text('Tujuan: ${document['tujuan_pengajuan'] ?? '-'}'),
-                    if (document['keterangan'] != null) ...[
-                      const SizedBox(height: 8),
-                      Text('Keterangan: ${document['keterangan']}'),
-                    ],
-                    if (isRevisi) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.yellow[50],
-                          border: Border(
-                              left: BorderSide(color: Colors.amber, width: 4)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Keterangan Revisi:',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.orange),
-                            ),
-                            Text(document['keterangan'] ?? '-',
-                                style: const TextStyle(color: Colors.brown)),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                                _selectedRevisiFile?.name ?? 'No file chosen'),
-                          ),
-                          ElevatedButton(
-                            onPressed: _isUploadingRevisi
-                                ? null
-                                : () async {
-                                    final result =
-                                        await FilePicker.platform.pickFiles(
-                                      type: FileType.any,
-        // Hapus allowedExtensions karena kita akan filter manual
-                                      allowMultiple: false,
-                                      withData: true,
-                                    );
-                                    if (result != null &&
-                                        result.files.isNotEmpty) {
-                                      setStateDialog(() {
-                                        _selectedRevisiFile =
-                                            result.files.first;
-                                      });
-                                    }
-                                  },
-                            child: const Text('Choose File'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _isUploadingRevisi ||
-                                  _selectedRevisiFile == null
-                              ? null
-                              : () async {
-                                  setStateDialog(() {
-                                    _isUploadingRevisi = true;
-                                  });
-                                  final res = await _documentService
-                                      .uploadRevisiDocument(
-                                    documentId: document['id'].toString(),
-                                    fileBytes: _selectedRevisiFile!.bytes!,
-                                    fileName: _selectedRevisiFile!.name,
-                                  );
-                                  setStateDialog(() {
-                                    _isUploadingRevisi = false;
-                                  });
-                                  if (res['success']) {
-                                    if (mounted) {
-                                      Navigator.pop(context);
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                            content: Text(
-                                                'Dokumen berhasil diupdate!'),
-                                            backgroundColor: Colors.green),
-                                      );
-                                      _loadDocuments();
-                                      _loadDocumentStats();
-                                    }
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                          content: Text(res['message'] ??
-                                              'Gagal update dokumen'),
-                                          backgroundColor: Colors.red),
-                                    );
-                                  }
-                                },
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue),
-                          child: _isUploadingRevisi
-                              ? const SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white))
-                              : const Text('Update Dokumen',
-                                  style: TextStyle(color: Colors.white)),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          title: const Text(
+            'Detail Dokumen',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _detailRow('Nomor Surat', document['nomor_surat'] ?? '-'),
+                _detailRow('Hal', document['hal'] ?? '-'),
+                _detailRow('Nama Pengaju', document['namaMahasiswa'] ?? '-'),
+                _detailRow(
+                    isApproved ? 'Tanggal Disahkan' : 'Tanggal Pengajuan',
+                    isApproved
+                        ? _formatDate(document['tanggal_verifikasi'])
+                        : (document['tanggal_pengajuan'] ?? '-')),
+                _detailRow('Status', document['status'] ?? '-'),
+                if (document['keterangan'] != null)
+                  _detailRow('Keterangan', document['keterangan'] ?? '-'),
+                if (isRevisi) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.yellow[50],
+                      border: Border(
+                          left: BorderSide(color: Colors.amber, width: 4)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ElevatedButton(
-                          onPressed: () => _viewDocument(
-                              document['id'].toString(),
-                              document['filename'] ?? 'Dokumen'),
-                          child: const Text('Lihat'),
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.amber),
+                        const Text(
+                          'Keterangan Revisi:',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange),
                         ),
-                        ElevatedButton(
-                          onPressed: () =>
-                              _downloadDocument(document['id'].toString()),
-                          child: const Text('Download'),
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue),
-                        ),
+                        Text(document['keterangan'] ?? '-',
+                            style: const TextStyle(color: Colors.brown)),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child:
+                            Text(_selectedRevisiFile?.name ?? 'No file chosen'),
+                      ),
+                      ElevatedButton(
+                        onPressed: _isUploadingRevisi
+                            ? null
+                            : () async {
+                                final result =
+                                    await FilePicker.platform.pickFiles(
+                                  type: FileType.any,
+                                  allowMultiple: false,
+                                  withData: true,
+                                );
+                                if (result != null && result.files.isNotEmpty) {
+                                  setState(() {
+                                    _selectedRevisiFile = result.files.first;
+                                  });
+                                }
+                              },
+                        child: const Text('Choose File'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isUploadingRevisi ||
+                              _selectedRevisiFile == null
+                          ? null
+                          : () async {
+                              setState(() {
+                                _isUploadingRevisi = true;
+                              });
+                              final res =
+                                  await _documentService.uploadRevisiDocument(
+                                documentId: document['id'].toString(),
+                                fileBytes: _selectedRevisiFile!.bytes!,
+                                fileName: _selectedRevisiFile!.name,
+                              );
+                              setState(() {
+                                _isUploadingRevisi = false;
+                              });
+                              if (res['success']) {
+                                if (mounted) {
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content:
+                                            Text('Dokumen berhasil diupdate!'),
+                                        backgroundColor: Colors.green),
+                                  );
+                                  _loadDocuments();
+                                  _loadDocumentStats();
+                                }
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content: Text(res['message'] ??
+                                          'Gagal update dokumen'),
+                                      backgroundColor: Colors.red),
+                                );
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue),
+                      child: _isUploadingRevisi
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Text('Update Dokumen',
+                              style: TextStyle(color: Colors.white)),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _viewDocument(document['id'].toString(),
+                            document['filename'] ?? 'Dokumen');
+                      },
+                      icon: const Icon(Icons.visibility, size: 20),
+                      label: const Text('Lihat'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () =>
+                          _downloadDocument(document['id'].toString()),
+                      icon: const Icon(Icons.download, size: 20),
+                      label: const Text('Unduh'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Tutup'),
-                ),
               ],
-            );
-          },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Tutup'),
+            ),
+          ],
         );
       },
     );
@@ -528,13 +627,14 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
       print('Document ID: $documentId');
 
       // Tambahkan parameter role 'ormawa'
-      final response = await _documentService.getDocumentFile(documentId, role: 'ormawa');
+      final response =
+          await _documentService.getDocumentFile(documentId, role: 'ormawa');
 
       if (!mounted) return;
 
       if (response['success'] && response['data'] != null) {
         final Uint8List bytes = response['data'];
-        
+
         if (mounted) Navigator.pop(context);
 
         await Navigator.push(
@@ -558,7 +658,8 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
                   onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
                     print('Error loading PDF: ${details.error}');
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Gagal memuat PDF: ${details.error}')),
+                      SnackBar(
+                          content: Text('Gagal memuat PDF: ${details.error}')),
                     );
                   },
                   onDocumentLoaded: (PdfDocumentLoadedDetails details) {
@@ -639,7 +740,7 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
 
         if (mounted) {
           Navigator.pop(context); // Close loading dialog
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('File berhasil disimpan di Download/$fileName'),

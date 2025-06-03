@@ -203,89 +203,95 @@ class _OrmawaBerandaPageState extends State<OrmawaBerandaPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBarOrmawa(userData: _userData),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await Future.wait([
-            _loadUserData(),
-            _loadDocumentStats(),
-          ]);
-        },
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Selamat Datang, $_displayName!',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pushReplacementNamed(context, '/login');
+        return false;
+      },
+      child: Scaffold(
+        appBar: AppBarOrmawa(userData: _userData),
+        body: RefreshIndicator(
+          onRefresh: () async {
+            await Future.wait([
+              _loadUserData(),
+              _loadDocumentStats(),
+            ]);
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Selamat Datang, $_displayName!',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Riwayat Dokumen',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Riwayat Dokumen',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                if (_isLoading)
-                  const Center(child: CircularProgressIndicator())
-                else ...[
-                  _buildStatCard(
-                    'Dokumen Diajukan',
-                    _documentStats?['submitted'] ?? 0,
-                    Colors.orange,
-                    Icons.description_outlined,
+                  const SizedBox(height: 16),
+                  if (_isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else ...[
+                    _buildStatCard(
+                      'Dokumen Diajukan',
+                      _documentStats?['submitted'] ?? 0,
+                      Colors.orange,
+                      Icons.description_outlined,
+                    ),
+                    _buildStatCard(
+                      'Dokumen Tertanda',
+                      _documentStats?['signed'] ?? 0,
+                      Colors.green,
+                      Icons.check_circle_outline,
+                    ),
+                    _buildStatCard(
+                      'Perlu Direvisi',
+                      _documentStats?['perlu_revisi'] ?? 0,
+                      Colors.red,
+                      Icons.warning_outlined,
+                    ),
+                    _buildStatCard(
+                      'Sudah Direvisi',
+                      _documentStats?['sudah_direvisi'] ?? 0,
+                      Colors.blue,
+                      Icons.edit_document,
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  const Text(
+                    'FAQ',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  _buildStatCard(
-                    'Dokumen Tertanda',
-                    _documentStats?['signed'] ?? 0,
-                    Colors.green,
-                    Icons.check_circle_outline,
-                  ),
-                  _buildStatCard(
-                    'Perlu Direvisi',
-                    _documentStats?['perlu_revisi'] ?? 0,
-                    Colors.red,
-                    Icons.warning_outlined,
-                  ),
-                  _buildStatCard(
-                    'Sudah Direvisi',
-                    _documentStats?['sudah_direvisi'] ?? 0,
-                    Colors.blue,
-                    Icons.edit_document,
+                  const SizedBox(height: 16),
+                  const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text('FAQ Content'),
+                    ),
                   ),
                 ],
-                const SizedBox(height: 24),
-                const Text(
-                  'FAQ',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text('FAQ Content'),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
-      ),
-      bottomNavigationBar: NavbarOrmawa(
-        currentIndex: _selectedIndex,
-        userData: _userData,
+        bottomNavigationBar: NavbarOrmawa(
+          currentIndex: _selectedIndex,
+          userData: _userData,
+        ),
       ),
     );
   }

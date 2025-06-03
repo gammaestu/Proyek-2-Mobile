@@ -134,124 +134,130 @@ class _OrmawaProfilePageState extends State<OrmawaProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBarOrmawa(userData: _userData),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadUserData,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: Colors.blue,
-                      child: Text(
-                        _userData?['namaMahasiswa'] != null &&
-                                _userData!['namaMahasiswa'].isNotEmpty
-                            ? _userData!['namaMahasiswa'][0].toUpperCase()
-                            : 'U',
-                        style: const TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _namaController,
-                      decoration: const InputDecoration(labelText: 'Nama'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _emailController,
-                      decoration: const InputDecoration(labelText: 'Email'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _noHpController,
-                      decoration:
-                          const InputDecoration(labelText: 'No. Telepon'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      enabled: false,
-                      decoration: InputDecoration(
-                        labelText: 'NIM',
-                        hintText: _userData?['nim'] ?? '-',
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _saveProfile,
-                        child: const Text('Simpan Perubahan'),
-                      ),
-                    ),
-                    const Divider(height: 40),
-                    const Text('Update Password',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _currentPasswordController,
-                      decoration:
-                          const InputDecoration(labelText: 'Password Lama'),
-                      obscureText: true,
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _newPasswordController,
-                      decoration:
-                          const InputDecoration(labelText: 'Password Baru'),
-                      obscureText: true,
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _confirmPasswordController,
-                      decoration: const InputDecoration(
-                          labelText: 'Konfirmasi Password Baru'),
-                      obscureText: true,
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _savePassword,
-                        child: const Text('Update Password'),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _handleLogout,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text(
-                          'Keluar',
-                          style: TextStyle(
-                            color: Colors.white,
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pushReplacementNamed(context, '/login');
+        return false;
+      },
+      child: Scaffold(
+        appBar: AppBarOrmawa(userData: _userData),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
+                onRefresh: _loadUserData,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.blue,
+                        child: Text(
+                          _userData?['namaMahasiswa'] != null &&
+                                  _userData!['namaMahasiswa'].isNotEmpty
+                              ? _userData!['namaMahasiswa'][0].toUpperCase()
+                              : 'U',
+                          style: const TextStyle(
+                            fontSize: 40,
                             fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _namaController,
+                        decoration: const InputDecoration(labelText: 'Nama'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _emailController,
+                        decoration: const InputDecoration(labelText: 'Email'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _noHpController,
+                        decoration:
+                            const InputDecoration(labelText: 'No. Telepon'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        enabled: false,
+                        decoration: InputDecoration(
+                          labelText: 'NIM',
+                          hintText: _userData?['nim'] ?? '-',
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _saveProfile,
+                          child: const Text('Simpan Perubahan'),
+                        ),
+                      ),
+                      const Divider(height: 40),
+                      const Text('Update Password',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _currentPasswordController,
+                        decoration:
+                            const InputDecoration(labelText: 'Password Lama'),
+                        obscureText: true,
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _newPasswordController,
+                        decoration:
+                            const InputDecoration(labelText: 'Password Baru'),
+                        obscureText: true,
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _confirmPasswordController,
+                        decoration: const InputDecoration(
+                            labelText: 'Konfirmasi Password Baru'),
+                        obscureText: true,
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _savePassword,
+                          child: const Text('Update Password'),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _handleLogout,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text(
+                            'Keluar',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-      bottomNavigationBar: NavbarOrmawa(
-        currentIndex: _selectedIndex,
-        userData: _userData,
+        bottomNavigationBar: NavbarOrmawa(
+          currentIndex: _selectedIndex,
+          userData: _userData,
+        ),
       ),
     );
   }
