@@ -1,0 +1,2 @@
+D:/Polindra/Project/Proyek 2/V1/Proyek-2-Mobile/android/app/.cxx/RelWithDebInfo/3t372pd2/armeabi-v7a/CMakeFiles/edit_cache.dir
+D:/Polindra/Project/Proyek 2/V1/Proyek-2-Mobile/android/app/.cxx/RelWithDebInfo/3t372pd2/armeabi-v7a/CMakeFiles/rebuild_cache.dir

@@ -150,173 +150,180 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBarOrmawa(userData: widget.userData),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await Future.wait([
-            _loadDocumentStats(),
-            _loadDocuments(),
-          ]);
-        },
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Status Cards
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildStatusCard(
-                      "Dokumen Diajukan",
-                      _documentStats?['submitted'] ?? 0,
-                      Colors.orange,
-                      Icons.pending_actions,
-                    ),
-                    _buildStatusCard(
-                      "Dokumen Tertanda",
-                      _documentStats?['signed'] ?? 0,
-                      Colors.green,
-                      Icons.check_circle,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildStatusCard(
-                      "Perlu Direvisi",
-                      _documentStats?['perlu_revisi'] ?? 0,
-                      Colors.red,
-                      Icons.cancel,
-                    ),
-                    _buildStatusCard(
-                      "Sudah Direvisi",
-                      _documentStats?['sudah_direvisi'] ?? 0,
-                      Colors.blue,
-                      Icons.edit_document,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // Riwayat Section
-                const Text(
-                  "Riwayat",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pushReplacementNamed(context, '/login');
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBarOrmawa(userData: widget.userData),
+        body: RefreshIndicator(
+          onRefresh: () async {
+            await Future.wait([
+              _loadDocumentStats(),
+              _loadDocuments(),
+            ]);
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Status Cards
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildStatusCard(
+                        "Dokumen Diajukan",
+                        _documentStats?['submitted'] ?? 0,
+                        Colors.orange,
+                        Icons.pending_actions,
+                      ),
+                      _buildStatusCard(
+                        "Dokumen Tertanda",
+                        _documentStats?['signed'] ?? 0,
+                        Colors.green,
+                        Icons.check_circle,
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 10),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildStatusCard(
+                        "Perlu Direvisi",
+                        _documentStats?['perlu_revisi'] ?? 0,
+                        Colors.red,
+                        Icons.cancel,
+                      ),
+                      _buildStatusCard(
+                        "Sudah Direvisi",
+                        _documentStats?['sudah_direvisi'] ?? 0,
+                        Colors.blue,
+                        Icons.edit_document,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
 
-                // Filter Buttons
-                Row(
-                  children: [
-                    _buildFilterButton(
-                      "Filter",
-                      Icons.filter_list,
-                      () {
-                        _showFilterDialog();
+                  // Riwayat Section
+                  const Text(
+                    "Riwayat",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Filter Buttons
+                  Row(
+                    children: [
+                      _buildFilterButton(
+                        "Filter",
+                        Icons.filter_list,
+                        () {
+                          _showFilterDialog();
+                        },
+                      ),
+                      const SizedBox(width: 10),
+                      _buildFilterButton(
+                        "Urutkan",
+                        Icons.sort,
+                        () {
+                          // TODO: Implement sort
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Daftar Dokumen
+                  if (_isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_documents.isEmpty)
+                    const Center(child: Text('Tidak ada dokumen'))
+                  else
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _documents.length,
+                      itemBuilder: (context, index) {
+                        final document = _documents[index];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey[300]!),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Nomor: ${document['nomor_surat'] ?? '-'}",
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        Text(
+                                          "Hal: ${document['hal'] ?? '-'}",
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                        Text(
+                                          "Status: ${document['status'] ?? '-'}",
+                                          style: TextStyle(
+                                            color: _getStatusColor(
+                                                document['status']),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () =>
+                                        _showDocumentDetail(context, document),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blue,
+                                    ),
+                                    child: const Text(
+                                      "Lihat Detail",
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
                       },
                     ),
-                    const SizedBox(width: 10),
-                    _buildFilterButton(
-                      "Urutkan",
-                      Icons.sort,
-                      () {
-                        // TODO: Implement sort
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // Daftar Dokumen
-                if (_isLoading)
-                  const Center(child: CircularProgressIndicator())
-                else if (_documents.isEmpty)
-                  const Center(child: Text('Tidak ada dokumen'))
-                else
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _documents.length,
-                    itemBuilder: (context, index) {
-                      final document = _documents[index];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey[300]!),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        "Nomor: ${document['nomor_surat'] ?? '-'}",
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        "Hal: ${document['hal'] ?? '-'}",
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                      Text(
-                                        "Status: ${document['status'] ?? '-'}",
-                                        style: TextStyle(
-                                          color: _getStatusColor(
-                                              document['status']),
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                ElevatedButton(
-                                  onPressed: () =>
-                                      _showDocumentDetail(context, document),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.blue,
-                                  ),
-                                  child: const Text(
-                                    "Lihat Detail",
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
-      ),
-      bottomNavigationBar: NavbarOrmawa(
-        currentIndex: _selectedIndex,
-        userData: widget.userData,
+        bottomNavigationBar: NavbarOrmawa(
+          currentIndex: _selectedIndex,
+          userData: widget.userData,
+        ),
       ),
     );
   }
@@ -403,7 +410,7 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
                                     final result =
                                         await FilePicker.platform.pickFiles(
                                       type: FileType.any,
-        // Hapus allowedExtensions karena kita akan filter manual
+                                      // Hapus allowedExtensions karena kita akan filter manual
                                       allowMultiple: false,
                                       withData: true,
                                     );
@@ -528,13 +535,14 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
       print('Document ID: $documentId');
 
       // Tambahkan parameter role 'ormawa'
-      final response = await _documentService.getDocumentFile(documentId, role: 'ormawa');
+      final response =
+          await _documentService.getDocumentFile(documentId, role: 'ormawa');
 
       if (!mounted) return;
 
       if (response['success'] && response['data'] != null) {
         final Uint8List bytes = response['data'];
-        
+
         if (mounted) Navigator.pop(context);
 
         await Navigator.push(
@@ -558,7 +566,8 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
                   onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
                     print('Error loading PDF: ${details.error}');
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Gagal memuat PDF: ${details.error}')),
+                      SnackBar(
+                          content: Text('Gagal memuat PDF: ${details.error}')),
                     );
                   },
                   onDocumentLoaded: (PdfDocumentLoadedDetails details) {
@@ -639,7 +648,7 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
 
         if (mounted) {
           Navigator.pop(context); // Close loading dialog
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('File berhasil disimpan di Download/$fileName'),
