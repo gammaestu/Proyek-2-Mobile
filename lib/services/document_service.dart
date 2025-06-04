@@ -166,7 +166,7 @@ class DocumentService {
         return 'http://10.0.2.2:8000/api';
       }
       // Untuk device fisik, gunakan IP komputer Anda
-      return 'http://192.168.1.3:8000/api'; // Ganti dengan IP komputer Anda
+      return 'http://192.168.35.8:8000/api'; // Ganti dengan IP komputer Anda
     }
     return 'http://localhost:8000/api';
   }
@@ -260,8 +260,9 @@ class DocumentService {
       print('Fetching documents for role: $role');
 
       // Pilih endpoint berdasarkan role
-      final endpoint = role == 'dosen' ? '/dosen/documents' : '/ormawa/documents';
-      
+      final endpoint =
+          role == 'dosen' ? '/dosen/documents' : '/ormawa/documents';
+
       final response = await _dio.get(
         endpoint,
         options: Options(

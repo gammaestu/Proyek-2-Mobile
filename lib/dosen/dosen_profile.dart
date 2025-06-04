@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../component/navbar_dosen.dart';
+import '../component/appbar_dosen.dart';
 import '../services/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class DosenProfilePage extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -16,6 +19,14 @@ class _DosenProfilePageState extends State<DosenProfilePage> {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
 
+  // Controller untuk form
+  final _namaController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _noHpController = TextEditingController();
+  final _currentPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -24,21 +35,74 @@ class _DosenProfilePageState extends State<DosenProfilePage> {
 
   Future<void> _loadUserData() async {
     Map<String, dynamic>? userData;
-
     if (widget.userData != null) {
       userData = widget.userData;
-      print('Data dari widget: $userData');
     } else {
       userData = await _authService.getUser();
-      print('Data dari penyimpanan: $userData');
     }
-
     if (mounted && userData != null) {
       setState(() {
         _userData = userData;
         _isLoading = false;
+        _namaController.text = userData!['namaDosen'] ?? '';
+        _emailController.text = userData!['email'] ?? '';
+        _noHpController.text = userData!['noHp'] ?? '';
       });
-      print('Data profil yang digunakan: $_userData');
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    setState(() => _isLoading = true);
+    final res = await _authService.updateDosenProfile(
+      namaDosen: _namaController.text,
+      email: _emailController.text,
+      noHp: _noHpController.text,
+    );
+    setState(() => _isLoading = false);
+    if (res['success'] == true) {
+      // Simpan data user terbaru ke SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user', jsonEncode(res['data']));
+      setState(() {
+        _userData = res['data']; // Update state agar AppBar langsung refresh
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Profil berhasil diupdate'),
+            backgroundColor: Colors.green),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(res['message'] ?? 'Gagal update profil'),
+            backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _savePassword() async {
+    setState(() => _isLoading = true);
+    final res = await _authService.updateDosenPassword(
+      currentPassword: _currentPasswordController.text,
+      newPassword: _newPasswordController.text,
+      confirmPassword: _confirmPasswordController.text,
+    );
+    setState(() => _isLoading = false);
+    if (res['success'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Password berhasil diubah'),
+            backgroundColor: Colors.green),
+      );
+      _currentPasswordController.clear();
+      _newPasswordController.clear();
+      _confirmPasswordController.clear();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(res['message'] ?? 'Gagal update password'),
+            backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -61,6 +125,7 @@ class _DosenProfilePageState extends State<DosenProfilePage> {
       return 'User';
     }
 
+    // Ambil nama dari field namaDosen
     final nama = _userData!['namaDosen']?.toString() ?? 'User';
     print('Data pengguna lengkap: $_userData');
     print('Nama yang akan ditampilkan: $nama');
@@ -69,135 +134,141 @@ class _DosenProfilePageState extends State<DosenProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profil Dosen'),
-        backgroundColor: Colors.blue,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadUserData,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: Colors.blue,
-                      child: Text(
-                        _displayName.isNotEmpty
-                            ? _displayName[0].toUpperCase()
-                            : 'U',
-                        style: const TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      _displayName,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    _buildProfileItem(
-                      icon: Icons.badge_outlined,
-                      title: 'NIP',
-                      value: _userData?['nip']?.toString() ?? '-',
-                    ),
-                    _buildProfileItem(
-                      icon: Icons.email_outlined,
-                      title: 'Email',
-                      value: _userData?['email']?.toString() ?? '-',
-                    ),
-                    _buildProfileItem(
-                      icon: Icons.phone_outlined,
-                      title: 'No. Telepon',
-                      value: _userData?['noHp']?.toString() ?? '-',
-                    ),
-                    _buildProfileItem(
-                      icon: Icons.school_outlined,
-                      title: 'Program Studi',
-                      value: _userData?['prodi']?.toString() ?? '-',
-                    ),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _handleLogout,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text(
-                          'Keluar',
-                          style: TextStyle(
-                            color: Colors.white,
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pushReplacementNamed(context, '/login');
+        return false;
+      },
+      child: Scaffold(
+        appBar: AppBarDosen(userData: _userData),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
+                onRefresh: _loadUserData,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.blue,
+                        child: Text(
+                          _userData?['namaDosen'] != null &&
+                                  _userData!['namaDosen'].isNotEmpty
+                              ? _userData!['namaDosen'][0].toUpperCase()
+                              : 'U',
+                          style: const TextStyle(
+                            fontSize: 40,
                             fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _namaController,
+                        decoration: const InputDecoration(labelText: 'Nama'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _emailController,
+                        decoration: const InputDecoration(labelText: 'Email'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _noHpController,
+                        decoration:
+                            const InputDecoration(labelText: 'No. Telepon'),
+                      ),
+                      TextField(
+                        enabled: false,
+                        decoration: InputDecoration(
+                          labelText: 'NIP',
+                          hintText: _userData?['nip'] ?? '-',
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _saveProfile,
+                          child: const Text('Simpan Perubahan'),
+                        ),
+                      ),
+                      const Divider(height: 40),
+                      const Text('Update Password',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _currentPasswordController,
+                        decoration:
+                            const InputDecoration(labelText: 'Password Lama'),
+                        obscureText: true,
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _newPasswordController,
+                        decoration:
+                            const InputDecoration(labelText: 'Password Baru'),
+                        obscureText: true,
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _confirmPasswordController,
+                        decoration: const InputDecoration(
+                            labelText: 'Konfirmasi Password Baru'),
+                        obscureText: true,
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _savePassword,
+                          child: const Text('Update Password'),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _handleLogout,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text(
+                            'Keluar',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-      bottomNavigationBar: NavbarDosen(
-        currentIndex: _selectedIndex,
-        userData: _userData,
+        bottomNavigationBar: NavbarDosen(
+          currentIndex: _selectedIndex,
+          userData: _userData,
+        ),
       ),
     );
   }
 
-  Widget _buildProfileItem({
-    required IconData icon,
-    required String title,
-    required String value,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.blue),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  @override
+  void dispose() {
+    _namaController.dispose();
+    _emailController.dispose();
+    _noHpController.dispose();
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 }

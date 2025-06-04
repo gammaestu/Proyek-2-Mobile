@@ -12,7 +12,7 @@ class AuthService {
 
   // Base URL untuk API - bisa diubah sesuai kebutuhan
   static const String _defaultBaseUrl =
-      'http://192.168.1.3:8000'; // Sesuaikan dengan IP laptop Anda
+      'http://192.168.35.8:8000'; // Sesuaikan dengan IP laptop Anda
   static String? _customBaseUrl; // Untuk menyimpan URL kustom
 
   // Tambahkan timeout yang lebih lama
@@ -243,6 +243,29 @@ class AuthService {
     return jsonDecode(response.body);
   }
 
+  Future<Map<String, dynamic>> updateDosenProfile({
+    required String namaDosen,
+    required String email,
+    required String noHp,
+  }) async {
+    final token = await getToken();
+    final baseUrl = getBaseUrl();
+    final response = await http.put(
+      Uri.parse('$baseUrl/dosen/profile'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'namaDosen': namaDosen,
+        'email': email,
+        'noHp': noHp,
+      }),
+    );
+    return jsonDecode(response.body);
+  }
+
   Future<Map<String, dynamic>> updatePassword({
     required String currentPassword,
     required String newPassword,
@@ -252,6 +275,29 @@ class AuthService {
     final baseUrl = getBaseUrl();
     final response = await http.put(
       Uri.parse('$baseUrl/ormawa/profile/password'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'current_password': currentPassword,
+        'new_password': newPassword,
+        'new_password_confirmation': confirmPassword,
+      }),
+    );
+    return jsonDecode(response.body);
+  }
+
+  Future<Map<String, dynamic>> updateDosenPassword({
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    final token = await getToken();
+    final baseUrl = getBaseUrl();
+    final response = await http.put(
+      Uri.parse('$baseUrl/dosen/profile/password'),
       headers: {
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',

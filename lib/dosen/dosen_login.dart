@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class DosenLoginPage extends StatefulWidget {
   const DosenLoginPage({super.key});
@@ -50,6 +52,10 @@ class _DosenLoginPageState extends State<DosenLoginPage> {
         }
 
         final dosenData = Map<String, dynamic>.from(result['user']);
+
+        // Simpan data dosen ke SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user', jsonEncode(dosenData));
 
         Navigator.pushReplacementNamed(
           context,
@@ -119,9 +125,7 @@ class _DosenLoginPageState extends State<DosenLoginPage> {
                       ),
                     ),
                   ),
-
                   const Spacer(),
-
                   Form(
                     key: _formKey,
                     child: Column(
@@ -144,22 +148,28 @@ class _DosenLoginPageState extends State<DosenLoginPage> {
                           ),
                         const Text(
                           'NIP',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w500),
                         ),
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _nipController,
                           enabled: !_isLoading,
-                          validator: (value) =>
-                              value == null || value.isEmpty ? 'NIP tidak boleh kosong' : null,
+                          validator: (value) => value == null || value.isEmpty
+                              ? 'NIP tidak boleh kosong'
+                              : null,
                           decoration: InputDecoration(
-                            prefixIcon: const Icon(Icons.person_outline, color: Colors.grey),
+                            prefixIcon: const Icon(Icons.person_outline,
+                                color: Colors.grey),
                             hintText: 'Masukkan NIP',
-                            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            hintStyle: TextStyle(
+                                color: Colors.grey.shade400, fontSize: 14),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8)),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
+                              borderSide:
+                                  BorderSide(color: Colors.grey.shade300),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -172,23 +182,29 @@ class _DosenLoginPageState extends State<DosenLoginPage> {
                         const SizedBox(height: 16),
                         const Text(
                           'Password',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w500),
                         ),
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _passwordController,
                           obscureText: true,
                           enabled: !_isLoading,
-                          validator: (value) =>
-                              value == null || value.isEmpty ? 'Password tidak boleh kosong' : null,
+                          validator: (value) => value == null || value.isEmpty
+                              ? 'Password tidak boleh kosong'
+                              : null,
                           decoration: InputDecoration(
-                            prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
+                            prefixIcon: const Icon(Icons.lock_outline,
+                                color: Colors.grey),
                             hintText: 'Masukkan Password',
-                            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            hintStyle: TextStyle(
+                                color: Colors.grey.shade400, fontSize: 14),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8)),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
+                              borderSide:
+                                  BorderSide(color: Colors.grey.shade300),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),

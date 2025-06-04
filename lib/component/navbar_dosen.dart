@@ -21,7 +21,10 @@ class NavbarDosen extends StatefulWidget {
 
 class _NavbarDosenState extends State<NavbarDosen> {
   DateTime? _lastPressedAt; // Untuk double tap exit
-  final List<int> _navigationStack = [0]; // Stack untuk menyimpan history navigasi
+  final List<int> _navigationStack = [
+    0
+  ]; // Stack untuk menyimpan history navigasi
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
@@ -37,13 +40,20 @@ class _NavbarDosenState extends State<NavbarDosen> {
       _navigationStack.removeLast();
       // Ambil halaman sebelumnya
       final previousIndex = _navigationStack.last;
-      
+
+      // Ambil data user terbaru
+      final userData = await _authService.getUser();
+      if (userData == null) {
+        Navigator.pushReplacementNamed(context, '/login');
+        return false;
+      }
+
       // Navigasi ke halaman sebelumnya
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) {
-            return _buildPage(previousIndex, widget.userData);
+            return _buildPage(previousIndex, userData);
           },
           transitionDuration: const Duration(milliseconds: 300),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -53,13 +63,14 @@ class _NavbarDosenState extends State<NavbarDosen> {
       );
       return false;
     }
-    
+
     // Jika di halaman utama, tanyakan konfirmasi keluar
-    if (_lastPressedAt == null || 
-        DateTime.now().difference(_lastPressedAt!) > const Duration(seconds: 2)) {
+    if (_lastPressedAt == null ||
+        DateTime.now().difference(_lastPressedAt!) >
+            const Duration(seconds: 2)) {
       // Update waktu terakhir ditekan
       _lastPressedAt = DateTime.now();
-      
+
       // Tampilkan toast
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -107,11 +118,11 @@ class _NavbarDosenState extends State<NavbarDosen> {
           if (index != widget.currentIndex) {
             if (!context.mounted) return;
 
-            // Ambil ulang userData jika null
-            Map<String, dynamic>? finalUserData = widget.userData;
-            if (finalUserData == null) {
-              final authService = AuthService();
-              finalUserData = await authService.getUser();
+            // Ambil data user terbaru
+            final userData = await _authService.getUser();
+            if (userData == null) {
+              Navigator.pushReplacementNamed(context, '/login');
+              return;
             }
 
             // Tambahkan halaman baru ke stack
@@ -123,10 +134,11 @@ class _NavbarDosenState extends State<NavbarDosen> {
               context,
               PageRouteBuilder(
                 pageBuilder: (context, animation, secondaryAnimation) {
-                  return _buildPage(index, finalUserData);
+                  return _buildPage(index, userData);
                 },
                 transitionDuration: const Duration(milliseconds: 300),
-                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) {
                   return FadeTransition(opacity: animation, child: child);
                 },
               ),

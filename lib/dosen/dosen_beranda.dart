@@ -47,6 +47,11 @@ class _DosenBerandaPageState extends State<DosenBerandaPage> {
         _isLoading = false;
       });
       print('Data dosen yang digunakan: $_userData');
+    } else {
+      // Jika data tidak ditemukan, kembali ke halaman login
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
     }
   }
 
@@ -54,10 +59,10 @@ class _DosenBerandaPageState extends State<DosenBerandaPage> {
     try {
       print('Mulai mengambil statistik dokumen'); // Debug print
       setState(() => _isLoading = true);
-      
+
       final result = await _documentService.getDocumentStatsForDosen();
       print('Hasil statistik: $result'); // Debug print
-      
+
       if (mounted) {
         if (result['success'] == true) {
           setState(() {
@@ -66,15 +71,40 @@ class _DosenBerandaPageState extends State<DosenBerandaPage> {
           });
           print('Stats berhasil diupdate: $_documentStats');
         } else {
-          throw Exception(result['message'] ?? 'Gagal mengambil statistik');
+          setState(() {
+            _documentStats = {
+              'diajukan': 0,
+              'disahkan': 0,
+              'butuh revisi': 0,
+              'sudah direvisi': 0,
+            };
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Gagal mengambil statistik'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
       }
     } catch (e) {
       print('Error: $e'); // Debug print
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _documentStats = {
+            'diajukan': 0,
+            'disahkan': 0,
+            'butuh revisi': 0,
+            'sudah direvisi': 0,
+          };
+          _isLoading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memuat statistik: ${e.toString()}')),
+          SnackBar(
+            content: Text('Gagal memuat statistik: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -124,7 +154,8 @@ class _DosenBerandaPageState extends State<DosenBerandaPage> {
                 const SizedBox(height: 10),
                 if (_isLoading)
                   const Center(child: CircularProgressIndicator())
-                else ...[                Row(
+                else ...[
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       _statusCard(
@@ -220,7 +251,9 @@ class _DosenBerandaPageState extends State<DosenBerandaPage> {
         userData: _userData,
       ),
     );
-  }  Widget _statusCard({
+  }
+
+  Widget _statusCard({
     required IconData icon,
     required String title,
     required int count,
@@ -249,7 +282,8 @@ class _DosenBerandaPageState extends State<DosenBerandaPage> {
             const SizedBox(height: 5),
             Text(
               "$count",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color),
+              style: TextStyle(
+                  fontSize: 20, fontWeight: FontWeight.bold, color: color),
             ),
           ],
         ),
