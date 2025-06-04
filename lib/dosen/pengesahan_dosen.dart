@@ -260,7 +260,7 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
                               Expanded(
                                 child: _buildActionButton(
                                   icon: Icons.qr_code_rounded,
-                                  label: 'Bubuhkan QR',
+                                  label: 'Bubuhkan',
                                   color: Colors.blueAccent,
                                   onPressed: () async {
                                     Navigator.pop(dialogContext);
@@ -704,33 +704,38 @@ class _DosenPengesahanPageState extends State<DosenPengesahanPage> {
         )
       );
     }
-  }
-  Widget _buildActionButton({
+  }  Widget _buildActionButton({
     required IconData icon,
     required String label,
     required Color color,
     required VoidCallback onPressed,
   }) {
-    return SizedBox(
-      height: 44,
-      child: ElevatedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, color: Colors.white, size: 20),
-        label: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+    return Expanded(
+      child: SizedBox(
+        height: 44,
+        child: ElevatedButton.icon(
+          onPressed: onPressed,
+          icon: Icon(icon, color: Colors.white, size: 18),
+          label: Flexible(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
           ),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: color,
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         ),
       ),
     );

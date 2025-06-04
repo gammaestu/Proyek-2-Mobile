@@ -471,7 +471,7 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
                               fontWeight: FontWeight.bold,
                               color: Colors.orange),
                         ),
-                        Text(document['keterangan'] ?? '-',
+                        Text(document['keterangan_revisi'] ?? '-',
                             style: const TextStyle(color: Colors.brown)),
                       ],
                     ),
@@ -483,20 +483,29 @@ class _OrmawaRiwayatPageState extends State<OrmawaRiwayatPage> {
                         child:
                             Text(_selectedRevisiFile?.name ?? 'No file chosen'),
                       ),
-                      ElevatedButton(
-                        onPressed: _isUploadingRevisi
+                      ElevatedButton(                        onPressed: _isUploadingRevisi
                             ? null
-                            : () async {
-                                final result =
-                                    await FilePicker.platform.pickFiles(
+                            : () async { 
+                                final result = await FilePicker.platform.pickFiles(
                                   type: FileType.any,
                                   allowMultiple: false,
                                   withData: true,
                                 );
                                 if (result != null && result.files.isNotEmpty) {
-                                  setState(() {
-                                    _selectedRevisiFile = result.files.first;
-                                  });
+                                  if (mounted) {
+                                    setState(() {
+                                      _selectedRevisiFile = result.files.first;
+                                    });
+                                    // Re-build dialog to show selected file
+                                    Navigator.pop(context); 
+                                    // Pop existing dialog first
+                                    await Future.delayed(Duration(milliseconds: 100));
+                                    // Small delay to ensure pop is completed
+                                    if (mounted) {
+                                      // Show new dialog with updated file
+                                      _showDocumentDetail(context, document);
+                                    }
+                                  }
                                 }
                               },
                         child: const Text('Choose File'),

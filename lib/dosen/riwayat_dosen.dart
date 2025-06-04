@@ -462,7 +462,7 @@ class _DosenRiwayatPageState extends State<DosenRiwayatPage> {
           MaterialPageRoute(
             builder: (context) => Scaffold(
               appBar: AppBar(
-                title: Text('Dokumen #$documentId'),
+                title: Text('Dokumen'),
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_back),
                   onPressed: () => Navigator.pop(context),

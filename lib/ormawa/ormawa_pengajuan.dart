@@ -3,9 +3,7 @@ import '../component/navbar_ormawa.dart';
 import '../component/appbar_ormawa.dart';
 import '../services/document_service.dart';
 import 'package:file_picker/file_picker.dart';
-import 'dart:io';
 
-// Test
 class OrmawaPengajuanPage extends StatefulWidget {
   final Map<String, dynamic>? userData;
   const OrmawaPengajuanPage({super.key, this.userData});
@@ -26,12 +24,9 @@ class _OrmawaPengajuanPageState extends State<OrmawaPengajuanPage> {
   PlatformFile? _selectedFile;
   bool _isLoading = false;
 
-  // Tambahan untuk dropdown
-  String? _selectedTujuan;
+  // Data untuk dropdown dosen
   List<Map<String, dynamic>> _dosenList = [];
-  List<Map<String, dynamic>> _kemahasiswaanList = [];
   String? _selectedDosenId;
-  String? _selectedKemahasiswaanId;
 
   @override
   void initState() {
@@ -158,20 +153,10 @@ class _OrmawaPengajuanPageState extends State<OrmawaPengajuanPage> {
       return;
     }
 
-    if (_selectedTujuan == null) {
+    if (_selectedDosenId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Silakan pilih tujuan pengajuan'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    if (_selectedTujuan == 'Dosen' && _selectedDosenId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Silakan pilih dosen tujuan'),
           backgroundColor: Colors.red,
         ),
       );
@@ -192,18 +177,9 @@ class _OrmawaPengajuanPageState extends State<OrmawaPengajuanPage> {
     setState(() => _isLoading = true);
 
     try {
-      String tujuanPengajuan = '';
-      if (_selectedTujuan == 'Dosen' && _selectedDosenId != null) {
-        // Cari nama dosen dari ID yang dipilih
-        tujuanPengajuan = _selectedDosenId!;
-      } else if (_selectedTujuan == 'Kemahasiswaan' &&
-          _selectedKemahasiswaanId != null) {
-        tujuanPengajuan = _selectedKemahasiswaanId!;
-      }
-
       final result = await _documentService.submitDocument(
         nomorSurat: _nomorSuratController.text,
-        tujuanPengajuan: tujuanPengajuan,
+        tujuanPengajuan: _selectedDosenId!,
         hal: _halController.text,
         fileBytes: _selectedFile!.bytes!,
         fileName: _selectedFile!.name,
@@ -223,9 +199,7 @@ class _OrmawaPengajuanPageState extends State<OrmawaPengajuanPage> {
         _formKey.currentState!.reset();
         setState(() {
           _selectedFile = null;
-          _selectedTujuan = null;
           _selectedDosenId = null;
-          _selectedKemahasiswaanId = null;
         });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -307,122 +281,68 @@ class _OrmawaPengajuanPageState extends State<OrmawaPengajuanPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: _selectedTujuan,
-                  decoration: const InputDecoration(
-                    labelText: 'Tujuan Pengajuan',
-                    border: OutlineInputBorder(),
+                const Text(
+                  'Pilih Dosen Tujuan',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                   ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'Dosen',
-                      child: Text('Dosen'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Kemahasiswaan',
-                      child: Text('Kemahasiswaan'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedTujuan = value;
-                      _selectedDosenId = null;
-                      _selectedKemahasiswaanId = null;
-                    });
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Silakan pilih tujuan pengajuan';
-                    }
-                    return null;
-                  },
                 ),
-                if (_selectedTujuan == 'Dosen') ...[
-                  const SizedBox(height: 16),
-                  _isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : Column(
-                          children: [
-                            if (_dosenList.isEmpty)
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Text(
-                                      'Tidak ada data dosen. ',
-                                      style: TextStyle(color: Colors.red),
-                                    ),
-                                    TextButton(
-                                      onPressed: _loadData,
-                                      child: const Text('Coba Lagi'),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            else
-                              DropdownButtonFormField<String>(
-                                value: _selectedDosenId,
-                                decoration: const InputDecoration(
-                                  labelText: 'Pilih Dosen',
-                                  border: OutlineInputBorder(),
-                                  hintText: 'Pilih dosen tujuan',
-                                ),
-                                items: _dosenList.map((dosen) {
-                                  print(
-                                      'Creating dropdown item for dosen: $dosen'); // Debug print
-                                  return DropdownMenuItem(
-                                    value: dosen['id'].toString(),
-                                    child: Text(
-                                        dosen['nama'] ?? 'Nama tidak tersedia'),
-                                  );
-                                }).toList(),
-                                onChanged: (value) {
-                                  setState(() {
-                                    _selectedDosenId = value;
-                                    print(
-                                        'Selected dosen ID: $value'); // Debug print
-                                  });
-                                },
-                                validator: (value) {
-                                  if (_selectedTujuan == 'Dosen' &&
-                                      (value == null || value.isEmpty)) {
-                                    return 'Silakan pilih dosen';
-                                  }
-                                  return null;
-                                },
+                const SizedBox(height: 16),
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : Column(
+                        children: [
+                          if (_dosenList.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Text(
+                                    'Tidak ada data dosen. ',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                  TextButton(
+                                    onPressed: _loadData,
+                                    child: const Text('Coba Lagi'),
+                                  ),
+                                ],
                               ),
-                          ],
-                        ),
-                ],
-                if (_selectedTujuan == 'Kemahasiswaan') ...[
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: _selectedKemahasiswaanId,
-                    decoration: const InputDecoration(
-                      labelText: 'Pilih Kemahasiswaan',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: _kemahasiswaanList.map((kemahasiswaan) {
-                      return DropdownMenuItem(
-                        value: kemahasiswaan['id'].toString(),
-                        child: Text(kemahasiswaan['nama']),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedKemahasiswaanId = value;
-                      });
-                    },
-                    validator: (value) {
-                      if (_selectedTujuan == 'Kemahasiswaan' &&
-                          (value == null || value.isEmpty)) {
-                        return 'Silakan pilih kemahasiswaan';
-                      }
-                      return null;
-                    },
-                  ),
-                ],
+                            )
+                          else
+                            DropdownButtonFormField<String>(
+                              value: _selectedDosenId,
+                              decoration: const InputDecoration(
+                                labelText: 'Pilih Dosen',
+                                border: OutlineInputBorder(),
+                                hintText: 'Pilih dosen tujuan',
+                              ),
+                              items: _dosenList.map((dosen) {
+                                print(
+                                    'Creating dropdown item for dosen: $dosen'); // Debug print
+                                return DropdownMenuItem(
+                                  value: dosen['id'].toString(),
+                                  child: Text(
+                                      dosen['nama'] ?? 'Nama tidak tersedia'),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedDosenId = value;
+                                  print(
+                                      'Selected dosen ID: $value'); // Debug print
+                                });
+                              },
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Silakan pilih dosen';
+                                }
+                                return null;
+                              },
+                            ),
+                        ],
+                      ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _halController,
